@@ -1,0 +1,47 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    font-family: 'Roboto', sans-serif;
+    @apply bg-benext-blue text-white antialiased;
+  }
+}
+
+@layer components {
+  .dropzone {
+    @apply border-2 border-dashed border-benext-teal transition-all duration-300;
+  }
+  
+  .dropzone.active {
+    @apply border-white bg-benext-teal bg-opacity-10;
+  }
+  
+  .btn-teal {
+    @apply bg-benext-teal text-benext-blue font-medium transition-all duration-200;
+  }
+  
+  .btn-teal:hover {
+    @apply bg-opacity-90;
+  }
+  
+  .canvas-container {
+    @apply w-full h-full relative;
+  }
+  
+  .pdf-canvas {
+    @apply absolute top-0 left-0 z-10;
+  }
+  
+  .annotation-canvas {
+    @apply absolute top-0 left-0 z-20;
+  }
+}
