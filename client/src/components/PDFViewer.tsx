@@ -1,9 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
-import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
-
-// Set worker source
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.10.111/build/pdf.worker.min.js';
+import React, { useEffect, useState } from "react";
+import PDFCanvas from "@/components/PDFCanvas";
 
 interface PDFViewerProps {
   file: File | null;
@@ -11,91 +7,43 @@ interface PDFViewerProps {
 }
 
 const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1.0);
 
+  // Load the file data when it changes
   useEffect(() => {
     if (!file) return;
 
-    const loadPDF = async () => {
+    const loadData = async () => {
       try {
-        // Read the file
-        const arrayBuffer = await file.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        
-        // Load the PDF
-        const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
-        const pdfDoc = await loadingTask.promise;
-        
-        setPdfDoc(pdfDoc);
-        setTotalPages(pdfDoc.numPages);
-        
-        // Render the first page
-        await renderPage(pdfDoc, 1);
+        const data = await file.arrayBuffer();
+        setPdfData(data);
       } catch (error) {
-        console.error("Error loading PDF:", error);
+        console.error("Error reading file:", error);
       }
     };
 
-    loadPDF();
+    loadData();
   }, [file]);
 
-  const renderPage = async (
-    pdf: PDFDocumentProxy,
-    pageNumber: number,
-    newScale?: number
-  ) => {
-    if (!canvasRef.current) return;
-
-    try {
-      const page: PDFPageProxy = await pdf.getPage(pageNumber);
-      const canvas = canvasRef.current;
-      const context = canvas.getContext("2d");
-      
-      if (!context) {
-        console.error("Unable to get canvas context");
-        return;
-      }
-
-      const currentScale = newScale || scale;
-      const viewport = page.getViewport({ scale: currentScale });
-
-      // Set canvas dimensions to match the viewport
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-
-      // Render the PDF page
-      const renderContext = {
-        canvasContext: context,
-        viewport: viewport,
-      };
-
-      await page.render(renderContext).promise;
-    } catch (error) {
-      console.error("Error rendering page:", error);
-    }
+  const handlePageLoaded = (pages: number) => {
+    setTotalPages(pages);
   };
 
-  const prevPage = async () => {
-    if (!pdfDoc || currentPage <= 1) return;
-    setCurrentPage(currentPage - 1);
-    await renderPage(pdfDoc, currentPage - 1);
+  const prevPage = () => {
+    if (currentPage <= 1) return;
+    setCurrentPage(prev => prev - 1);
   };
 
-  const nextPage = async () => {
-    if (!pdfDoc || currentPage >= totalPages) return;
-    setCurrentPage(currentPage + 1);
-    await renderPage(pdfDoc, currentPage + 1);
+  const nextPage = () => {
+    if (currentPage >= totalPages) return;
+    setCurrentPage(prev => prev + 1);
   };
 
-  const changeZoom = async (newScale: number) => {
+  const changeZoom = (newScale: number) => {
     setScale(newScale);
-    if (pdfDoc) {
-      await renderPage(pdfDoc, currentPage, newScale);
-    }
   };
 
   const handleDownload = () => {
@@ -137,7 +85,12 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose }) => {
       <div className="relative bg-benext-gray-100 rounded-lg overflow-hidden" style={{ height: "70vh" }}>
         {/* PDF Render Canvas */}
         <div className="w-full h-full flex items-center justify-center overflow-auto">
-          <canvas ref={canvasRef} className="pdf-canvas" />
+          <PDFCanvas 
+            pdfData={pdfData} 
+            pageNumber={currentPage} 
+            scale={scale} 
+            onPageLoaded={handlePageLoaded}
+          />
         </div>
 
         {/* PDF Controls (Bottom) */}
