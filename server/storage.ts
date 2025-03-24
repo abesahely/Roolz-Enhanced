@@ -79,7 +79,7 @@ export class MemStorage implements IStorage {
     const updatedDocument: Document = {
       ...existingDocument,
       ...document,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date()
     };
     
     this.docs.set(id, updatedDocument);
