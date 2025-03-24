@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, bytea } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -18,7 +18,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
   filename: text("filename").notNull(),
-  data: bytea("data").notNull(),
+  data: text("data").notNull(),
   size: integer("size").notNull(),
   mimeType: text("mime_type").notNull().default("application/pdf"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

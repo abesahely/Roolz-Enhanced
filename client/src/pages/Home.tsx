@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { DragDropUpload } from "@/components/ui/drag-drop-upload";
 import PDFEditor from "@/components/PDFEditor";
 import Header from "@/components/Header";

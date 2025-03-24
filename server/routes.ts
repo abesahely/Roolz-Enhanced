@@ -62,9 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         data: buffer,
         size,
         mimeType: mimetype,
-        id: 0, // Will be assigned by storage
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        id: 0 // Will be assigned by storage
       });
       
       res.status(201).json({ 

@@ -59,7 +59,7 @@ export class MemStorage implements IStorage {
 
   async createDocument(document: Document): Promise<Document> {
     const id = this.currentDocId++;
-    const now = new Date().toISOString();
+    const now = new Date();
     
     const newDocument: Document = {
       ...document,
