@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as pdfjs from "pdfjs-dist";
 
-// Don't set the worker source - let PDF.js use a fallback implementation
-// This will run in the main thread and is fine for our use case
+// Don't set the worker source - PDF.js will use a fallback implementation
 
 interface PDFCanvasProps {
   pdfData: ArrayBuffer | null;

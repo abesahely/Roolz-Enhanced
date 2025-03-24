@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import PDFCanvas from "@/components/PDFCanvas";
 
 interface PDFViewerProps {
   file: File | null;
@@ -7,44 +6,20 @@ interface PDFViewerProps {
 }
 
 const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose }) => {
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [scale, setScale] = useState(1.0);
-
-  // Load the file data when it changes
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+  
+  // Create an object URL when the file changes
   useEffect(() => {
     if (!file) return;
-
-    const loadData = async () => {
-      try {
-        const data = await file.arrayBuffer();
-        setPdfData(data);
-      } catch (error) {
-        console.error("Error reading file:", error);
-      }
+    
+    const url = URL.createObjectURL(file);
+    setFileUrl(url);
+    
+    // Clean up the URL when component unmounts
+    return () => {
+      URL.revokeObjectURL(url);
     };
-
-    loadData();
   }, [file]);
-
-  const handlePageLoaded = (pages: number) => {
-    setTotalPages(pages);
-  };
-
-  const prevPage = () => {
-    if (currentPage <= 1) return;
-    setCurrentPage(prev => prev - 1);
-  };
-
-  const nextPage = () => {
-    if (currentPage >= totalPages) return;
-    setCurrentPage(prev => prev + 1);
-  };
-
-  const changeZoom = (newScale: number) => {
-    setScale(newScale);
-  };
 
   const handleDownload = () => {
     if (file) {
@@ -83,70 +58,17 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose }) => {
 
       {/* PDF Viewer Area */}
       <div className="relative bg-benext-gray-100 rounded-lg overflow-hidden" style={{ height: "70vh" }}>
-        {/* PDF Render Canvas */}
-        <div className="w-full h-full flex items-center justify-center overflow-auto">
-          <PDFCanvas 
-            pdfData={pdfData} 
-            pageNumber={currentPage} 
-            scale={scale} 
-            onPageLoaded={handlePageLoaded}
+        {fileUrl ? (
+          <iframe 
+            src={fileUrl}
+            className="w-full h-full border-0"
+            title="PDF Document Viewer"
           />
-        </div>
-
-        {/* PDF Controls (Bottom) */}
-        <div className="absolute bottom-0 left-0 right-0 bg-benext-blue bg-opacity-90 py-2 px-4 flex justify-between items-center">
-          <div className="flex items-center space-x-3">
-            <button
-              className="text-white hover:text-benext-teal"
-              title="Previous Page"
-              onClick={prevPage}
-              disabled={currentPage <= 1}
-            >
-              <i className="fas fa-chevron-left"></i>
-            </button>
-            <span className="text-white text-sm">
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              className="text-white hover:text-benext-teal"
-              title="Next Page"
-              onClick={nextPage}
-              disabled={currentPage >= totalPages}
-            >
-              <i className="fas fa-chevron-right"></i>
-            </button>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <p className="text-benext-gray-400">Loading document...</p>
           </div>
-          <div className="flex items-center space-x-3">
-            <button
-              className="text-white hover:text-benext-teal"
-              title="Zoom Out"
-              onClick={() => changeZoom(scale - 0.25)}
-              disabled={scale <= 0.5}
-            >
-              <i className="fas fa-search-minus"></i>
-            </button>
-            <select
-              className="bg-benext-blue text-white text-sm border border-benext-gray-600 rounded px-2 py-1"
-              value={scale}
-              onChange={(e) => changeZoom(parseFloat(e.target.value))}
-            >
-              <option value="0.5">50%</option>
-              <option value="0.75">75%</option>
-              <option value="1">100%</option>
-              <option value="1.25">125%</option>
-              <option value="1.5">150%</option>
-              <option value="2">200%</option>
-            </select>
-            <button
-              className="text-white hover:text-benext-teal"
-              title="Zoom In"
-              onClick={() => changeZoom(scale + 0.25)}
-              disabled={scale >= 2}
-            >
-              <i className="fas fa-search-plus"></i>
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
