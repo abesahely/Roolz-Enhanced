@@ -60,28 +60,11 @@ const Home: React.FC = () => {
     setIsUploading(true);
     
     try {
-      // Show detailed logging for debugging
-      console.log(`Fetching document with ID: ${document.id}`);
+      const response = await fetch(`/api/documents/${document.id}`);
+      if (!response.ok) throw new Error("Failed to fetch document");
       
-      // Use a specific response type for the fetch request
-      const response = await fetch(`/api/documents/${document.id}`, {
-        headers: {
-          'Accept': 'application/pdf'
-        }
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`Fetch error: ${response.status} ${response.statusText}`, errorText);
-        throw new Error(`Failed to fetch document: ${response.status}`);
-      }
-      
-      console.log("Document fetched successfully, creating blob...");
       const blob = await response.blob();
-      console.log(`Blob created: ${blob.size} bytes, type: ${blob.type}`);
-      
       const file = new File([blob], document.filename, { type: "application/pdf" });
-      console.log(`File created: ${file.name}, size: ${file.size}`);
       
       setPdfFile(file);
       setCurrentStep(2);

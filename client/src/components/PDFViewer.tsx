@@ -1,4 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import * as pdfjsLib from "pdfjs-dist";
+import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+
+// Set worker source
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.10.111/build/pdf.worker.min.js';
 
 interface PDFViewerProps {
   file: File | null;
@@ -6,20 +11,92 @@ interface PDFViewerProps {
 }
 
 const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose }) => {
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
-  
-  // Create an object URL when the file changes
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [scale, setScale] = useState(1.0);
+
   useEffect(() => {
     if (!file) return;
-    
-    const url = URL.createObjectURL(file);
-    setFileUrl(url);
-    
-    // Clean up the URL when component unmounts
-    return () => {
-      URL.revokeObjectURL(url);
+
+    const loadPDF = async () => {
+      try {
+        // Read the file
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        
+        // Load the PDF
+        const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+        const pdfDoc = await loadingTask.promise;
+        
+        setPdfDoc(pdfDoc);
+        setTotalPages(pdfDoc.numPages);
+        
+        // Render the first page
+        await renderPage(pdfDoc, 1);
+      } catch (error) {
+        console.error("Error loading PDF:", error);
+      }
     };
+
+    loadPDF();
   }, [file]);
+
+  const renderPage = async (
+    pdf: PDFDocumentProxy,
+    pageNumber: number,
+    newScale?: number
+  ) => {
+    if (!canvasRef.current) return;
+
+    try {
+      const page: PDFPageProxy = await pdf.getPage(pageNumber);
+      const canvas = canvasRef.current;
+      const context = canvas.getContext("2d");
+      
+      if (!context) {
+        console.error("Unable to get canvas context");
+        return;
+      }
+
+      const currentScale = newScale || scale;
+      const viewport = page.getViewport({ scale: currentScale });
+
+      // Set canvas dimensions to match the viewport
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      // Render the PDF page
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport,
+      };
+
+      await page.render(renderContext).promise;
+    } catch (error) {
+      console.error("Error rendering page:", error);
+    }
+  };
+
+  const prevPage = async () => {
+    if (!pdfDoc || currentPage <= 1) return;
+    setCurrentPage(currentPage - 1);
+    await renderPage(pdfDoc, currentPage - 1);
+  };
+
+  const nextPage = async () => {
+    if (!pdfDoc || currentPage >= totalPages) return;
+    setCurrentPage(currentPage + 1);
+    await renderPage(pdfDoc, currentPage + 1);
+  };
+
+  const changeZoom = async (newScale: number) => {
+    setScale(newScale);
+    if (pdfDoc) {
+      await renderPage(pdfDoc, currentPage, newScale);
+    }
+  };
 
   const handleDownload = () => {
     if (file) {
@@ -58,17 +135,65 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose }) => {
 
       {/* PDF Viewer Area */}
       <div className="relative bg-benext-gray-100 rounded-lg overflow-hidden" style={{ height: "70vh" }}>
-        {fileUrl ? (
-          <iframe 
-            src={fileUrl}
-            className="w-full h-full border-0"
-            title="PDF Document Viewer"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <p className="text-benext-gray-400">Loading document...</p>
+        {/* PDF Render Canvas */}
+        <div className="w-full h-full flex items-center justify-center overflow-auto">
+          <canvas ref={canvasRef} className="pdf-canvas" />
+        </div>
+
+        {/* PDF Controls (Bottom) */}
+        <div className="absolute bottom-0 left-0 right-0 bg-benext-blue bg-opacity-90 py-2 px-4 flex justify-between items-center">
+          <div className="flex items-center space-x-3">
+            <button
+              className="text-white hover:text-benext-teal"
+              title="Previous Page"
+              onClick={prevPage}
+              disabled={currentPage <= 1}
+            >
+              <i className="fas fa-chevron-left"></i>
+            </button>
+            <span className="text-white text-sm">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              className="text-white hover:text-benext-teal"
+              title="Next Page"
+              onClick={nextPage}
+              disabled={currentPage >= totalPages}
+            >
+              <i className="fas fa-chevron-right"></i>
+            </button>
           </div>
-        )}
+          <div className="flex items-center space-x-3">
+            <button
+              className="text-white hover:text-benext-teal"
+              title="Zoom Out"
+              onClick={() => changeZoom(scale - 0.25)}
+              disabled={scale <= 0.5}
+            >
+              <i className="fas fa-search-minus"></i>
+            </button>
+            <select
+              className="bg-benext-blue text-white text-sm border border-benext-gray-600 rounded px-2 py-1"
+              value={scale}
+              onChange={(e) => changeZoom(parseFloat(e.target.value))}
+            >
+              <option value="0.5">50%</option>
+              <option value="0.75">75%</option>
+              <option value="1">100%</option>
+              <option value="1.25">125%</option>
+              <option value="1.5">150%</option>
+              <option value="2">200%</option>
+            </select>
+            <button
+              className="text-white hover:text-benext-teal"
+              title="Zoom In"
+              onClick={() => changeZoom(scale + 0.25)}
+              disabled={scale >= 2}
+            >
+              <i className="fas fa-search-plus"></i>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
