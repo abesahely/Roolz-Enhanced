@@ -61,6 +61,21 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // beNext.io branding colors
+        benext: {
+          blue: '#1E3A8A',
+          teal: '#2DD4BF',
+          white: '#FFFFFF',
+          gray: {
+            100: '#F3F4F6',
+            200: '#E5E7EB',
+            300: '#D1D5DB',
+            400: '#9CA3AF',
+            500: '#6B7280',
+            600: '#4B5563',
+            700: '#374151',
+          }
+        },
       },
       keyframes: {
         "accordion-down": {

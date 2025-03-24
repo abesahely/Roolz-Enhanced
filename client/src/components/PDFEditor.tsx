@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import PDFViewer from "@/components/PDFViewer";
 import AnnotationTools from "@/components/AnnotationTools";
 import SignatureModal from "@/components/SignatureModal";
-import { fabric } from "fabric";
 
 interface PDFEditorProps {
   file: File | null;
@@ -11,37 +10,81 @@ interface PDFEditorProps {
 
 const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
   const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const [fabricCanvas, setFabricCanvas] = useState<fabric.Canvas | null>(null);
+  const annotationCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [ctx, setCtx] = useState<CanvasRenderingContext2D | null>(null);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+  const [annotations, setAnnotations] = useState<Array<{
+    type: 'text' | 'signature',
+    data: any,
+    x: number,
+    y: number
+  }>>([]);
 
   useEffect(() => {
-    if (canvasContainerRef.current && !fabricCanvas) {
-      const canvas = new fabric.Canvas(document.createElement("canvas"), {
-        width: canvasContainerRef.current.offsetWidth,
-        height: canvasContainerRef.current.offsetHeight,
-      });
+    if (canvasContainerRef.current && !annotationCanvasRef.current) {
+      // Create a canvas element for annotations
+      const canvas = document.createElement("canvas");
+      canvas.width = canvasContainerRef.current.offsetWidth;
+      canvas.height = canvasContainerRef.current.offsetHeight;
+      canvas.style.position = "absolute";
+      canvas.style.top = "0";
+      canvas.style.left = "0";
+      canvas.style.zIndex = "10";
+      canvas.className = "annotation-canvas";
       
-      // Position the canvas over the PDF
-      const canvasEl = canvas.getElement();
-      canvasEl.style.position = "absolute";
-      canvasEl.style.top = "0";
-      canvasEl.style.left = "0";
-      canvasEl.style.zIndex = "10";
-      canvasEl.className = "annotation-canvas";
+      annotationCanvasRef.current = canvas;
       
       if (canvasContainerRef.current) {
-        canvasContainerRef.current.appendChild(canvasEl);
+        canvasContainerRef.current.appendChild(canvas);
       }
       
-      setFabricCanvas(canvas);
+      const context = canvas.getContext('2d');
+      if (context) {
+        setCtx(context);
+      }
       
       // Cleanup function
       return () => {
-        canvas.dispose();
-        canvasEl.remove();
+        if (annotationCanvasRef.current) {
+          annotationCanvasRef.current.remove();
+        }
       };
     }
-  }, [fabricCanvas]);
+  }, []);
+
+  // Render annotations whenever they change
+  useEffect(() => {
+    if (!ctx || !annotationCanvasRef.current) return;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, annotationCanvasRef.current.width, annotationCanvasRef.current.height);
+    
+    // Render all annotations
+    annotations.forEach(annotation => {
+      if (annotation.type === 'text') {
+        const { text, fontSize, fontFamily, fontWeight, fontStyle, color, underline } = annotation.data;
+        
+        ctx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+        ctx.fillStyle = color;
+        ctx.fillText(text, annotation.x, annotation.y);
+        
+        if (underline) {
+          const textWidth = ctx.measureText(text).width;
+          ctx.beginPath();
+          ctx.moveTo(annotation.x, annotation.y + 3);
+          ctx.lineTo(annotation.x + textWidth, annotation.y + 3);
+          ctx.stroke();
+        }
+      } else if (annotation.type === 'signature') {
+        // For signatures, draw the image from the data URL
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, annotation.x, annotation.y);
+        };
+        img.src = annotation.data;
+      }
+    });
+  }, [annotations, ctx]);
 
   const handleAddText = (options: {
     text: string;
@@ -51,43 +94,42 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     isItalic: boolean;
     isUnderline: boolean;
   }) => {
-    if (!fabricCanvas) return;
-    
     // Configure text properties based on size
     let fontSize = 14;
     if (options.size === "medium") fontSize = 20;
     if (options.size === "large") fontSize = 28;
     
-    // Create a new text object
-    const textObject = new fabric.Textbox(options.text, {
-      left: 100,
-      top: 100,
-      fontFamily: options.font,
-      fontSize: fontSize,
-      fill: "#2DD4BF",
-      fontWeight: options.isBold ? "bold" : "normal",
-      fontStyle: options.isItalic ? "italic" : "normal",
-      underline: options.isUnderline,
-    });
-    
-    // Add the text to the canvas
-    fabricCanvas.add(textObject);
-    fabricCanvas.setActiveObject(textObject);
-    fabricCanvas.renderAll();
+    // Add new text annotation
+    setAnnotations([
+      ...annotations,
+      {
+        type: 'text',
+        data: {
+          text: options.text,
+          fontSize,
+          fontFamily: options.font,
+          fontWeight: options.isBold ? 'bold' : 'normal',
+          fontStyle: options.isItalic ? 'italic' : 'normal',
+          color: '#2DD4BF',
+          underline: options.isUnderline
+        },
+        x: 100,
+        y: 100
+      }
+    ]);
   };
 
-  const handleSignatureSave = (signatureCanvas: fabric.Canvas) => {
-    if (!fabricCanvas) return;
-    
-    // Export signature as SVG
-    const signatureObjects = signatureCanvas.getObjects();
-    if (signatureObjects.length === 0) return;
-    
-    const group = new fabric.Group(signatureCanvas.getObjects());
-    
-    // Add to the main canvas
-    fabricCanvas.add(group);
-    fabricCanvas.renderAll();
+  const handleSignatureSave = (signatureDataURL: string) => {
+    // Add new signature annotation
+    setAnnotations([
+      ...annotations,
+      {
+        type: 'signature',
+        data: signatureDataURL,
+        x: 100, 
+        y: 200
+      }
+    ]);
   };
 
   return (

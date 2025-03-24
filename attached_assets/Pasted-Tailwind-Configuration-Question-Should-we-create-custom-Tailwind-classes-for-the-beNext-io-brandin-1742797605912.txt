@@ -1,0 +1,61 @@
+Tailwind Configuration
+Question: Should we create custom Tailwind classes for the beNext.io branding colors?
+Response: Yes, let’s define custom Tailwind classes for simplicity and consistency. Add these to the tailwind.config.js file to match beNext.io branding:  
+bg-benext-blue: #1E3A8A (deep blue)  
+
+text-benext-teal: #2DD4BF (teal)  
+
+text-benext-white: #FFFFFF (white)
+Example config snippet:
+js
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        'benext-blue': '#1E3A8A',
+        'benext-teal': '#2DD4BF',
+        'benext-white': '#FFFFFF',
+      },
+    },
+  },
+};
+
+This keeps styling straightforward and reusable for the initial build.
+Database Requirements
+Question: Should we keep using in-memory storage (MemStorage) or implement a more persistent solution?
+Response: Stick with in-memory storage (MemStorage) for now. It’s simple and fast for this phase since we’re only handling one uploaded PDF at a time in memory. We’ll switch to a persistent solution like AWS S3 or Firebase later when we expand beyond the core.
+User Authentication
+Question: Is user authentication required for this phase?
+Response: No, skip authentication for this phase. We want a bare-bones build where anyone can upload, view, and edit a PDF without logging in. We’ll add Firebase Auth or similar in a future phase when user roles and security become necessary.
+Document Annotations Persistence
+Question: Should we implement functionality to save annotations back to the document or persist them in storage?
+Response: Not yet. For this initial build, let annotations stay temporary on the canvas (in memory). Users can add text or signatures, but we won’t save them persistently or modify the PDF file. We’ll add saving (e.g., to JSON or the PDF itself) in the next phase.
+Mobile Responsiveness
+Question: Should we focus on enhancing mobile support?
+Response: Keep it minimal for now. Use basic Tailwind responsive classes (e.g., w-full, max-w-screen-md) to ensure the upload area and PDF viewer don’t break on mobile. Full mobile optimization (e.g., touch controls for Fabric.js) can wait until after the core is working on desktop.
+Fabric.js Integration
+Question: Are there any specific Fabric.js features or tools beyond text and signatures that should be implemented?
+Response: No, keep it simple with just text annotations (via fabric.Textbox) for now. Signatures can be simulated as text initially (e.g., typing a name). We’ll add drawing tools or advanced signature features later once the basics are solid.
+PDF Export
+Question: Should users be able to export/download the annotated PDFs with their annotations?
+Response: Not for this phase. Viewing the PDF with temporary annotations on the canvas is enough. Exporting annotated PDFs requires merging Fabric.js changes into the PDF, which adds complexity—let’s tackle that in the next phase.
+Error Handling
+Question: How comprehensive should the error handling be for file uploads and PDF processing?
+Response: Keep it basic. Add simple checks:  
+For uploads: Alert if the file isn’t a PDF (e.g., if (!file.type.includes('pdf')) alert('Please upload a PDF');).  
+
+For PDF.js: Show a message if rendering fails (e.g., <div>Failed to load PDF</div> as a fallback).
+No need for detailed logs or retries yet—focus on getting the happy path working.
+Deployment Plan
+Question: Do you have specific requirements for how the application should be deployed after completion?
+Response: Use Replit’s default hosting for now (the built-in preview URL). It’s quick and free, letting us test the app instantly. We’ll plan a proper deployment (e.g., custom domain or cloud service) after the core is functional.
+Testing Requirements
+Question: Are there specific test cases or scenarios we should ensure work correctly?
+Response: Test these three simple scenarios manually in Replit’s preview:  
+Upload: Drag a small PDF (e.g., 1-page file) and see it appear in the viewer.  
+
+View: Confirm the PDF renders clearly with PDF.js (scroll if multi-page).  
+
+Edit: Add a text annotation (e.g., “Test”) in teal and verify it shows on the canvas.
+If these work, the core is good enough to move forward.
+

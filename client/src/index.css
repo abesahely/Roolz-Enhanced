@@ -12,7 +12,7 @@
 
   body {
     font-family: 'Roboto', sans-serif;
-    @apply bg-benext-blue text-white antialiased;
+    @apply bg-benext-blue text-benext-white antialiased;
   }
 }
 
@@ -22,7 +22,7 @@
   }
   
   .dropzone.active {
-    @apply border-white bg-benext-teal bg-opacity-10;
+    @apply border-benext-white bg-benext-teal bg-opacity-10;
   }
   
   .btn-teal {
