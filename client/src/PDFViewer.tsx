@@ -1,12 +1,12 @@
 import React, { useEffect } from "react";
 import * as pdfjsLib from "pdfjs-dist";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.min.js?url"; // Vite asset import
+import pdfWorker from "pdfjs-dist/build/pdf.worker.min.js?url";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const PDFViewer: React.FC<{ file: File }> = ({ file }) => {
   useEffect(() => {
-    console.log("Worker src set to:", pdfjsLib.GlobalWorkerOptions.workerSrc); // Debug
+    console.log("Worker src set to:", pdfjsLib.GlobalWorkerOptions.workerSrc);
     if (file) {
       const reader = new FileReader();
       reader.onload = async () => {
