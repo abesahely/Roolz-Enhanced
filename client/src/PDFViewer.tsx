@@ -10,6 +10,7 @@ const PDFViewer: React.FC<{
 }> = ({ file, onCanvasReady }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const hasRendered = useRef(false);
+  const renderTaskRef = useRef<pdfjsLib.PDFRenderTask | null>(null);
 
   useEffect(() => {
     console.log(
@@ -30,7 +31,6 @@ const PDFViewer: React.FC<{
           const page = await pdf.getPage(1);
           console.log("Page 1 loaded");
 
-          // Get the page's rotation (in degrees: 0, 90, 180, 270)
           const rotation = page.rotate;
           console.log("Page rotation:", rotation);
 
@@ -43,7 +43,6 @@ const PDFViewer: React.FC<{
             throw new Error("Failed to get 2D context from canvas");
           }
 
-          // Adjust canvas dimensions based on rotation
           if (rotation === 90 || rotation === 270) {
             canvas.width = viewport.height;
             canvas.height = viewport.width;
@@ -52,7 +51,6 @@ const PDFViewer: React.FC<{
             canvas.height = viewport.height;
           }
 
-          // Apply transformation to correct the rotation
           context.save();
           if (rotation !== 0) {
             if (rotation === 90) {
@@ -68,14 +66,17 @@ const PDFViewer: React.FC<{
           }
 
           console.log("Rendering page to canvas...");
-          await page.render({
+          const renderTask = page.render({
             canvasContext: context,
-            viewport: page.getViewport({ scale: 1.0, rotation: 0 }), // Ignore rotation in viewport, handle it manually
-          }).promise;
+            viewport: page.getViewport({ scale: 1.0, rotation: 0 }),
+          });
+          renderTaskRef.current = renderTask;
+          await renderTask.promise;
           console.log("Page rendered successfully");
 
           context.restore();
           hasRendered.current = true;
+          renderTaskRef.current = null;
           onCanvasReady(canvas);
         } catch (error) {
           console.error("PDF rendering error:", error);
@@ -92,6 +93,14 @@ const PDFViewer: React.FC<{
         hasRendered.current,
       );
     }
+
+    return () => {
+      if (renderTaskRef.current) {
+        renderTaskRef.current.cancel();
+        renderTaskRef.current = null;
+        console.log("Cancelled ongoing render task");
+      }
+    };
   }, [file, onCanvasReady]);
 
   return (
