@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import PDFViewer from "@/PDFViewer";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -17,28 +17,42 @@ const View: React.FC = () => {
     width: number;
     height: number;
   } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const canvasRef = useRef<fabric.Canvas | null>(null);
   const [fontSize, setFontSize] = useState(20);
   const [textColor, setTextColor] = useState("#000000");
+  const [isFetching, setIsFetching] = useState(false);
+  const [isRendering, setIsRendering] = useState(false);
 
   useEffect(() => {
     if (fileUrl && !file) {
+      setIsFetching(true);
       fetch(fileUrl)
-        .then((res) => res.blob())
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error("Failed to fetch the PDF file");
+          }
+          return res.blob();
+        })
         .then((blob) => {
           const pdfFile = new File([blob], "document.pdf", {
             type: "application/pdf",
           });
+          console.log("PDF file fetched:", pdfFile);
           setFile(pdfFile);
         })
         .catch((err) => {
           console.error("Fetch error:", err);
-          setLocation("/");
+          setError("Failed to load the PDF. Please try again.");
+        })
+        .finally(() => {
+          setIsFetching(false);
         });
     }
-  }, [fileUrl, setLocation]);
+  }, [fileUrl]);
 
-  const handleCanvasReady = (pdfCanvas: HTMLCanvasElement) => {
+  const handleCanvasReady = useCallback((pdfCanvas: HTMLCanvasElement) => {
+    console.log("handleCanvasReady called with canvas:", pdfCanvas);
     if (pdfCanvas.width > 0 && pdfCanvas.height > 0) {
       const newDimensions = {
         width: pdfCanvas.width,
@@ -55,7 +69,7 @@ const View: React.FC = () => {
           "rgba(0,0,0,0)",
           fabricCanvas.renderAll.bind(fabricCanvas),
         );
-        fabricCanvas.isDrawingMode = false; // Explicitly disable drawing mode
+        fabricCanvas.isDrawingMode = false;
         canvasRef.current = fabricCanvas;
 
         const pdfRect = pdfCanvas.getBoundingClientRect();
@@ -68,14 +82,13 @@ const View: React.FC = () => {
         });
         console.log("Fabric canvas position:", {
           x: fabricRect.x,
-          y: fabricRect.y,
+          y: pdfRect.y,
           width: fabricRect.width,
           height: fabricRect.height,
         });
 
         fabricCanvas.on("mouse:down", (e) => console.log("Mouse down:", e));
 
-        // Update text properties when a textbox is selected
         fabricCanvas.on("selection:created", () => {
           const activeObject = fabricCanvas.getActiveObject();
           if (activeObject && activeObject.type === "textbox") {
@@ -95,8 +108,9 @@ const View: React.FC = () => {
           }
         });
       }
+      setIsRendering(false);
     }
-  };
+  }, []); // Empty dependency array to ensure the function doesn't change
 
   const addTextBox = () => {
     if (canvasRef.current) {
@@ -183,6 +197,18 @@ const View: React.FC = () => {
     }
   };
 
+  const handleGoBack = () => {
+    const path = "/";
+    setLocation(path.replace(/\/+/g, "/"));
+  };
+
+  useEffect(() => {
+    if (file && !canvasDimensions) {
+      console.log("Setting isRendering to true. File:", file);
+      setIsRendering(true);
+    }
+  }, [file, canvasDimensions]);
+
   useEffect(() => {
     return () => {
       if (canvasRef.current) {
@@ -192,8 +218,38 @@ const View: React.FC = () => {
     };
   }, []);
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-benext-blue text-benext-white">
+        <Header />
+        <main className="container mx-auto px-4 py-6">
+          <h1 className="text-2xl mb-6">Error</h1>
+          <p>{error}</p>
+          <button
+            onClick={handleGoBack}
+            className="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          >
+            Go Back
+          </button>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   if (!file) {
-    return <div>Loading PDF...</div>;
+    return (
+      <div className="min-h-screen bg-benext-blue text-benext-white">
+        <Header />
+        <main className="container mx-auto px-4 py-6">
+          <h1 className="text-2xl mb-6">View Document</h1>
+          <p>
+            {isFetching ? "Fetching PDF, please wait..." : "Loading PDF..."}
+          </p>
+        </main>
+        <Footer />
+      </div>
+    );
   }
 
   return (
@@ -201,6 +257,11 @@ const View: React.FC = () => {
       <Header />
       <main className="container mx-auto px-4 py-6">
         <h1 className="text-benext-white text-2xl mb-6">View Document</h1>
+        {isRendering && (
+          <p className="text-benext-white mb-4">
+            Rendering PDF, please wait...
+          </p>
+        )}
         <div className="mb-4 space-x-2">
           <button
             onClick={addTextBox}
@@ -231,7 +292,7 @@ const View: React.FC = () => {
                 setFontSize(Number(e.target.value));
                 updateTextProperties();
               }}
-              className="ml-2 p-1 rounded"
+              className="ml-2 p-1 rounded text-black bg-white"
               min="10"
               max="100"
             />
@@ -253,13 +314,12 @@ const View: React.FC = () => {
           id="canvas-container"
           style={{
             position: "relative",
-            width: canvasDimensions ? `${canvasDimensions.width}px` : "892px",
-            height: canvasDimensions
-              ? `${canvasDimensions.height}px`
-              : "1262px",
+            width: canvasDimensions ? `${canvasDimensions.width}px` : "595px",
+            height: canvasDimensions ? `${canvasDimensions.height}px` : "842px",
+            display: isRendering ? "none" : "block",
           }}
         >
-          <PDFViewer file={file} onCanvasReady={handleCanvasReady} />
+          {file && <PDFViewer file={file} onCanvasReady={handleCanvasReady} />}
           <canvas
             id="edit-canvas"
             style={{

@@ -12,23 +12,85 @@ const PDFViewer: React.FC<{
   const hasRendered = useRef(false);
 
   useEffect(() => {
+    console.log(
+      "PDFViewer useEffect triggered. File:",
+      file,
+      "Canvas ref:",
+      canvasRef.current,
+    );
+
     if (file && canvasRef.current && !hasRendered.current) {
       const renderPDF = async () => {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-        const page = await pdf.getPage(1);
-        const viewport = page.getViewport({ scale: 1.5 });
-        const canvas = canvasRef.current!;
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const context = canvas.getContext("2d");
-        if (context) {
-          await page.render({ canvasContext: context, viewport }).promise;
+        try {
+          console.log("Starting PDF rendering...");
+          const arrayBuffer = await file.arrayBuffer();
+          console.log("ArrayBuffer loaded:", arrayBuffer.byteLength, "bytes");
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          console.log("PDF document loaded:", pdf.numPages, "pages");
+          const page = await pdf.getPage(1);
+          console.log("Page 1 loaded");
+
+          // Get the page's rotation (in degrees: 0, 90, 180, 270)
+          const rotation = page.rotate;
+          console.log("Page rotation:", rotation);
+
+          const viewport = page.getViewport({ scale: 1.0 });
+          console.log("Viewport:", viewport.width, "x", viewport.height);
+
+          const canvas = canvasRef.current!;
+          const context = canvas.getContext("2d");
+          if (!context) {
+            throw new Error("Failed to get 2D context from canvas");
+          }
+
+          // Adjust canvas dimensions based on rotation
+          if (rotation === 90 || rotation === 270) {
+            canvas.width = viewport.height;
+            canvas.height = viewport.width;
+          } else {
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+          }
+
+          // Apply transformation to correct the rotation
+          context.save();
+          if (rotation !== 0) {
+            if (rotation === 90) {
+              context.translate(canvas.width, 0);
+              context.rotate((90 * Math.PI) / 180);
+            } else if (rotation === 180) {
+              context.translate(canvas.width, canvas.height);
+              context.rotate((180 * Math.PI) / 180);
+            } else if (rotation === 270) {
+              context.translate(0, canvas.height);
+              context.rotate((270 * Math.PI) / 180);
+            }
+          }
+
+          console.log("Rendering page to canvas...");
+          await page.render({
+            canvasContext: context,
+            viewport: page.getViewport({ scale: 1.0, rotation: 0 }), // Ignore rotation in viewport, handle it manually
+          }).promise;
+          console.log("Page rendered successfully");
+
+          context.restore();
           hasRendered.current = true;
           onCanvasReady(canvas);
+        } catch (error) {
+          console.error("PDF rendering error:", error);
         }
       };
       renderPDF();
+    } else {
+      console.log(
+        "PDFViewer conditions not met. File:",
+        file,
+        "Canvas ref:",
+        canvasRef.current,
+        "Has rendered:",
+        hasRendered.current,
+      );
     }
   }, [file, onCanvasReady]);
 
