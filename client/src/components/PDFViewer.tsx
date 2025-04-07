@@ -8,9 +8,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dis
 interface PDFViewerProps {
   file: File | null;
   onClose: () => void;
+  onCanvasReady?: (canvas: HTMLCanvasElement) => void;
 }
 
-const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose }) => {
+const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -35,13 +36,18 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose }) => {
         
         // Render the first page
         await renderPage(pdfDoc, 1);
+        
+        // Notify parent component that canvas is ready
+        if (onCanvasReady && canvasRef.current) {
+          onCanvasReady(canvasRef.current);
+        }
       } catch (error) {
         console.error("Error loading PDF:", error);
       }
     };
 
     loadPDF();
-  }, [file]);
+  }, [file, onCanvasReady]);
 
   const renderPage = async (
     pdf: PDFDocumentProxy,

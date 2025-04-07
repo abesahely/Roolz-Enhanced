@@ -17,3 +17,12 @@ export const BRAND_COLORS = {
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 export const ALLOWED_FILE_TYPES = ['application/pdf'];
+
+/**
+ * PDF Editor constants
+ */
+export const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36];
+export const DEFAULT_FONT_SIZE = 16;
+export const DEFAULT_FONT = 'Montserrat';
+export const SIGNATURE_FONT = 'Dancing Script';
+export const ANNOTATION_BACKGROUND = `${BRAND_COLORS.ORANGE}33`; // 20% opacity orange
