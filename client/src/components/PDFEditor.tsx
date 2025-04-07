@@ -102,6 +102,40 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     canvasRef.current = canvas;
     setFabricInitialized(true);
     
+    // Add keyboard event listener for deleting selected objects
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if Delete or Backspace is pressed
+      if ((e.key === 'Delete' || e.key === 'Backspace') && canvas) {
+        const activeObject = canvas.getActiveObject();
+        if (activeObject) {
+          canvas.remove(activeObject);
+          canvas.renderAll();
+          e.preventDefault(); // Prevent browser's back navigation on backspace
+        }
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    
+    // Add cleanup function to remove event listener
+    const cleanup = () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (canvas) {
+        canvas.dispose();
+      }
+    };
+    
+    // Store the cleanup function in a ref for later use
+    const cleanupRef = React.useRef(cleanup);
+    cleanupRef.current = cleanup;
+    
+    // Add cleanup on component unmount
+    React.useEffect(() => {
+      return () => {
+        cleanupRef.current();
+      };
+    }, []);
+    
     console.log("PDF canvas dimensions:", width, height);
     console.log("Annotation canvas initialized with interactive settings");
   };
@@ -128,7 +162,12 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       hasControls: true,
       hasBorders: true,
       lockScalingFlip: true,
-      lockUniScaling: false,
+      lockUniScaling: true, // This prevents text from resizing when box is resized
+      textAlign: 'left',
+      scaleX: 1,
+      scaleY: 1,
+      fixedWidth: true,
+      splitByGrapheme: false
     });
     
     canvasRef.current.add(textbox);
@@ -159,7 +198,11 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       hasControls: true,
       hasBorders: true,
       lockScalingFlip: true,
-      lockUniScaling: false,
+      lockUniScaling: true, // This prevents text from resizing when box is resized
+      textAlign: 'left',
+      scaleX: 1,
+      scaleY: 1,
+      fixedWidth: true,
     });
     
     canvasRef.current.add(signatureBox);
@@ -170,7 +213,7 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
   const handleAddCheckbox = () => {
     if (!canvasRef.current) return;
     
-    // Create a group for the checkbox (box + label)
+    // Create a group for the checkbox only (no label)
     const checkboxRect = new fabric.Rect({
       left: 0,
       top: 0,
@@ -179,15 +222,6 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       fill: 'white',
       stroke: 'black',
       strokeWidth: 2,
-    });
-    
-    const checkboxLabel = new fabric.Textbox('Checkbox Label', {
-      left: 30,
-      top: 0,
-      fontSize: DEFAULT_FONT_SIZE,
-      fontFamily: DEFAULT_FONT,
-      fill: '#000000',
-      backgroundColor: ANNOTATION_BACKGROUND,
     });
     
     // Create an invisible object to store checkbox state
@@ -214,7 +248,7 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       selectable: false,
     });
     
-    const group = new fabric.Group([checkboxRect, checkboxLabel, stateObject, checkmark], {
+    const group = new fabric.Group([checkboxRect, stateObject, checkmark], {
       left: 100,
       top: 150,
       selectable: true,
@@ -262,12 +296,56 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       const pages = pdfDoc.getPages();
       const firstPage = pages[0]; // For now, we only process the first page
       
-      // Convert the fabric canvas to a dataURL (PNG)
+      // First, let's save the current state of all objects
       const canvas = canvasRef.current;
+      const objects = canvas.getObjects();
+      const originalBackgrounds: Record<number, string | undefined> = {};
+      
+      // Temporarily remove all backgrounds from objects
+      objects.forEach((obj: fabric.Object, index: number) => {
+        if ((obj as any).type === 'textbox') {
+          originalBackgrounds[index] = (obj as any).backgroundColor;
+          (obj as any).set({ backgroundColor: 'transparent' });
+        } else if ((obj as any).type === 'group') {
+          const groupObjects = (obj as any)._objects;
+          if (groupObjects) {
+            groupObjects.forEach((groupObj: any) => {
+              if (groupObj.type === 'textbox') {
+                originalBackgrounds[index] = groupObj.backgroundColor;
+                groupObj.set({ backgroundColor: 'transparent' });
+              }
+            });
+          }
+        }
+      });
+      
+      // Force a render to update the objects
+      canvas.renderAll();
+      
+      // Convert the fabric canvas to a dataURL (PNG) without backgrounds
       const annotationsImage = canvas.toDataURL({
         format: 'png',
         quality: 1
       });
+      
+      // Restore the original backgrounds
+      objects.forEach((obj: fabric.Object, index: number) => {
+        if ((obj as any).type === 'textbox' && index in originalBackgrounds) {
+          (obj as any).set({ backgroundColor: originalBackgrounds[index] });
+        } else if ((obj as any).type === 'group') {
+          const groupObjects = (obj as any)._objects;
+          if (groupObjects) {
+            groupObjects.forEach((groupObj: any) => {
+              if (groupObj.type === 'textbox' && index in originalBackgrounds) {
+                groupObj.set({ backgroundColor: originalBackgrounds[index] });
+              }
+            });
+          }
+        }
+      });
+      
+      // Restore the canvas with original backgrounds
+      canvas.renderAll();
       
       // Remove the data:image/png;base64, prefix
       const base64Data = annotationsImage.replace(/^data:image\/(png|jpg);base64,/, '');
