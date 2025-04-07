@@ -6,9 +6,10 @@ interface PDFViewerProps {
   file: File | null;
   onClose: () => void;
   onCanvasReady?: (canvas: HTMLCanvasElement) => void;
+  onSaveWithAnnotations?: () => void;
 }
 
-const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady }) => {
+const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onSaveWithAnnotations }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -103,6 +104,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady }) =
 
   const handleDownload = () => {
     if (file) {
+      // This is just the original PDF without annotations
       const url = URL.createObjectURL(file);
       const a = document.createElement("a");
       a.href = url;
@@ -121,11 +123,20 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady }) =
         <div className="flex space-x-2">
           <button
             className="btn-teal p-2 rounded"
-            title="Download"
+            title="Download Original"
             onClick={handleDownload}
           >
             <i className="fas fa-download"></i>
           </button>
+          {onSaveWithAnnotations && (
+            <button
+              className="btn-orange p-2 rounded"
+              title="Save with Annotations"
+              onClick={onSaveWithAnnotations}
+            >
+              <i className="fas fa-file-signature"></i>
+            </button>
+          )}
           <button
             className="bg-benext-gray-600 hover:bg-benext-gray-500 text-white p-2 rounded"
             title="Close"

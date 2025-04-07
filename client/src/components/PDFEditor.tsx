@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 // @ts-ignore
 import { fabric } from "fabric";
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import PDFViewer from "@/components/PDFViewer";
 import AnnotationTools from "@/components/AnnotationTools";
 import SignatureModal from "@/components/SignatureModal";
@@ -37,58 +38,69 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
 
     // Get the PDF canvas
     const pdfCanvas = pdfCanvasRef.current;
-    const pdfCanvasRect = pdfCanvas.getBoundingClientRect();
     
     // Get dimensions from the PDF canvas
     const width = pdfCanvas.width;
     const height = pdfCanvas.height;
     
-    // Create a new overlay div that will contain our annotation canvas
-    // and position it exactly over the PDF canvas
-    const overlayDiv = document.createElement('div');
-    overlayDiv.id = 'annotation-overlay';
-    overlayDiv.style.position = 'absolute';
-    overlayDiv.style.top = `${pdfCanvasRect.top}px`;
-    overlayDiv.style.left = `${pdfCanvasRect.left}px`;
-    overlayDiv.style.width = `${width}px`;
-    overlayDiv.style.height = `${height}px`;
-    overlayDiv.style.zIndex = '20';
-    overlayDiv.style.pointerEvents = 'none';
-    
-    // Create a new canvas element
-    const newCanvas = document.createElement('canvas');
-    newCanvas.id = 'annotation-canvas';
-    newCanvas.width = width;
-    newCanvas.height = height;
-    newCanvas.style.position = 'absolute';
-    newCanvas.style.top = '0';
-    newCanvas.style.left = '0';
-    newCanvas.style.pointerEvents = 'auto';
-    
-    // Add the canvas to the overlay
-    overlayDiv.appendChild(newCanvas);
-    
-    // Add the overlay to the PDF container
+    // Find the container
     const pdfContainer = document.querySelector('.pdf-container');
-    if (pdfContainer) {
-      pdfContainer.appendChild(overlayDiv);
-    } else {
+    if (!pdfContainer) {
       console.error("PDF container not found");
       return;
     }
+    
+    // Create canvas element if it doesn't exist
+    let annotationCanvas = document.getElementById('annotation-canvas') as HTMLCanvasElement;
+    if (!annotationCanvas) {
+      // Create a new canvas element
+      annotationCanvas = document.createElement('canvas');
+      annotationCanvas.id = 'annotation-canvas';
+      
+      // Add it to the container
+      pdfContainer.appendChild(annotationCanvas);
+    }
+    
+    // Set canvas dimensions
+    annotationCanvas.width = width;
+    annotationCanvas.height = height;
+    
+    // Position the canvas directly over the PDF
+    annotationCanvas.style.position = 'absolute';
+    annotationCanvas.style.top = `${pdfCanvas.offsetTop}px`;
+    annotationCanvas.style.left = `${pdfCanvas.offsetLeft}px`;
+    annotationCanvas.style.zIndex = '20';
+    annotationCanvas.style.pointerEvents = 'all'; // This ensures it captures all pointer events
     
     // Create a fabric canvas with the same dimensions as the PDF
     const canvas = new fabric.Canvas("annotation-canvas", {
       width: width,
       height: height,
       backgroundColor: "transparent",
+      selection: true, // Allow selection
+      interactive: true // Ensure fabric's interactivity is on
     });
     
+    // Make sure all objects are selectable by default
+    fabric.Object.prototype.selectable = true;
+    fabric.Object.prototype.evented = true;
+    
+    // Store the canvas reference
     canvasRef.current = canvas;
     setFabricInitialized(true);
     
+    // Add a window resize handler to reposition the canvas
+    const handleResize = () => {
+      if (pdfCanvas && annotationCanvas) {
+        annotationCanvas.style.top = `${pdfCanvas.offsetTop}px`;
+        annotationCanvas.style.left = `${pdfCanvas.offsetLeft}px`;
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    
     console.log("PDF canvas dimensions:", width, height);
-    console.log("Annotation canvas initialized and positioned over PDF");
+    console.log("Annotation canvas initialized with interactive settings");
   };
 
   const handleAddText = (options: {
@@ -230,6 +242,73 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     canvasRef.current.setActiveObject(group);
     canvasRef.current.renderAll();
   };
+  
+  // Function to save the PDF with annotations
+  const saveAnnotatedPDF = async () => {
+    if (!file || !canvasRef.current || !pdfCanvasRef.current) {
+      console.error("Cannot save annotations: Missing file or canvas");
+      return;
+    }
+    
+    try {
+      // Get the PDF file
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Load the PDF document
+      const pdfDoc = await PDFDocument.load(arrayBuffer);
+      const pages = pdfDoc.getPages();
+      const firstPage = pages[0]; // For now, we only process the first page
+      
+      // Convert the fabric canvas to a dataURL (PNG)
+      const canvas = canvasRef.current;
+      const annotationsImage = canvas.toDataURL({
+        format: 'png',
+        quality: 1
+      });
+      
+      // Remove the data:image/png;base64, prefix
+      const base64Data = annotationsImage.replace(/^data:image\/(png|jpg);base64,/, '');
+      const annotationsImageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+      
+      // Embed the annotations image into the PDF
+      const pngImage = await pdfDoc.embedPng(annotationsImageBytes);
+      
+      // Get the dimensions of the page
+      const { width, height } = firstPage.getSize();
+      
+      // Draw the annotations image on top of the PDF
+      firstPage.drawImage(pngImage, {
+        x: 0,
+        y: 0,
+        width: width,
+        height: height,
+      });
+      
+      // Serialize the PDFDocument to bytes
+      const pdfBytes = await pdfDoc.save();
+      
+      // Create a blob and download
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      
+      // Generate a filename with 'annotated-' prefix
+      const originalName = file.name;
+      const annotatedName = originalName.replace('.pdf', '-annotated.pdf');
+      
+      // Create download link
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = annotatedName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      console.log("PDF saved with annotations!");
+    } catch (error) {
+      console.error("Error saving annotated PDF:", error);
+    }
+  };
 
   return (
     <div className="flex flex-col lg:flex-row h-full gap-4">
@@ -238,6 +317,7 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
           file={file} 
           onClose={onClose} 
           onCanvasReady={handleCanvasReady}
+          onSaveWithAnnotations={saveAnnotatedPDF}
         />
         
         {/* Annotation layer is created dynamically */}
