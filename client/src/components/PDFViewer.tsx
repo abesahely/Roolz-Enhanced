@@ -1,9 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import * as pdfjsLib from "pdfjs-dist";
+import { pdfjsLib } from "../pdfjs-worker-setup";
 import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
-
-// Set worker source
-pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.10.111/build/pdf.worker.min.js';
 
 interface PDFViewerProps {
   file: File | null;

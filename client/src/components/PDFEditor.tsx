@@ -24,28 +24,48 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const canvasRef = useRef<fabric.Canvas | null>(null);
   const [fabricInitialized, setFabricInitialized] = useState(false);
+  const pdfCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  useEffect(() => {
-    if (canvasContainerRef.current && !canvasRef.current) {
-      // Create a canvas element for annotations
-      const canvas = new fabric.Canvas("annotation-canvas", {
-        width: canvasContainerRef.current.offsetWidth,
-        height: canvasContainerRef.current.offsetHeight,
-        backgroundColor: "transparent",
-      });
-      
-      canvasRef.current = canvas;
-      setFabricInitialized(true);
-      
-      // Cleanup function
-      return () => {
-        if (canvasRef.current) {
-          canvasRef.current.dispose();
-          canvasRef.current = null;
-        }
-      };
+  // Initialize fabric canvas when the PDF canvas is ready
+  const handleCanvasReady = (canvas: HTMLCanvasElement) => {
+    pdfCanvasRef.current = canvas;
+    initializeFabricCanvas();
+  };
+
+  const initializeFabricCanvas = () => {
+    if (!pdfCanvasRef.current || canvasRef.current) return;
+
+    // Get dimensions from the PDF canvas
+    const width = pdfCanvasRef.current.width;
+    const height = pdfCanvasRef.current.height;
+
+    // Get the annotation canvas element
+    const annotationCanvasEl = document.getElementById("annotation-canvas");
+    if (!annotationCanvasEl) {
+      console.error("Annotation canvas element not found");
+      return;
     }
-  }, []);
+
+    // Position and size the annotation canvas to match the PDF canvas
+    annotationCanvasEl.style.width = `${width}px`;
+    annotationCanvasEl.style.height = `${height}px`;
+    annotationCanvasEl.style.position = "absolute";
+    annotationCanvasEl.style.top = `${pdfCanvasRef.current.offsetTop}px`;
+    annotationCanvasEl.style.left = `${pdfCanvasRef.current.offsetLeft}px`;
+
+    // Create a fabric canvas with the same dimensions as the PDF
+    const canvas = new fabric.Canvas("annotation-canvas", {
+      width: width,
+      height: height,
+      backgroundColor: "transparent",
+    });
+    
+    canvasRef.current = canvas;
+    setFabricInitialized(true);
+    
+    console.log("PDF canvas dimensions:", width, height);
+    console.log("Annotation canvas initialized");
+  };
 
   const handleAddText = (options: {
     text: string;
@@ -190,10 +210,14 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
   return (
     <div className="flex flex-col lg:flex-row h-full gap-4">
       <div ref={canvasContainerRef} className="relative flex-grow">
-        <PDFViewer file={file} onClose={onClose} />
+        <PDFViewer 
+          file={file} 
+          onClose={onClose} 
+          onCanvasReady={handleCanvasReady}
+        />
         <canvas 
           id="annotation-canvas" 
-          className="absolute top-0 left-0 z-10 w-full h-full" 
+          className="absolute top-0 left-0 z-10" 
         />
       </div>
       
