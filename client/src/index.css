@@ -50,11 +50,30 @@
     @apply w-full h-full relative;
   }
   
-  .pdf-canvas {
-    @apply absolute top-0 left-0 z-10;
+  .pdf-container {
+    position: relative;
+    overflow: hidden;
   }
   
-  .annotation-canvas {
-    @apply absolute top-0 left-0 z-20;
+  .pdf-canvas {
+    position: relative;
+    z-index: 10;
+  }
+  
+  /* Fix for the annotation canvas */
+  #annotation-canvas {
+    position: absolute;
+    z-index: 20;
+  }
+  
+  /* Ensure the PDF controls are always on top */
+  .pdf-controls {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 30;
+    background-color: rgba(10, 30, 69, 0.9);
+    padding: 8px 16px;
   }
 }

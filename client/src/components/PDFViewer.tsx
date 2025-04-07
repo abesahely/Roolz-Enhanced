@@ -139,12 +139,12 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady }) =
       {/* PDF Viewer Area */}
       <div className="relative bg-benext-gray-100 rounded-lg overflow-hidden" style={{ height: "70vh" }}>
         {/* PDF Render Canvas */}
-        <div className="w-full h-full flex items-center justify-center overflow-auto">
+        <div className="w-full h-full flex items-center justify-center overflow-auto pdf-container" style={{ maxHeight: "calc(70vh - 50px)" }}>
           <canvas ref={canvasRef} className="pdf-canvas" />
         </div>
 
         {/* PDF Controls (Bottom) */}
-        <div className="absolute bottom-0 left-0 right-0 bg-benext-blue bg-opacity-90 py-2 px-4 flex justify-between items-center">
+        <div className="pdf-controls flex justify-between items-center">
           <div className="flex items-center space-x-3">
             <button
               className="text-white hover:text-benext-teal"

@@ -35,24 +35,48 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
   const initializeFabricCanvas = () => {
     if (!pdfCanvasRef.current || canvasRef.current) return;
 
+    // Get the PDF canvas
+    const pdfCanvas = pdfCanvasRef.current;
+    const pdfCanvasRect = pdfCanvas.getBoundingClientRect();
+    
     // Get dimensions from the PDF canvas
-    const width = pdfCanvasRef.current.width;
-    const height = pdfCanvasRef.current.height;
-
-    // Get the annotation canvas element
-    const annotationCanvasEl = document.getElementById("annotation-canvas");
-    if (!annotationCanvasEl) {
-      console.error("Annotation canvas element not found");
+    const width = pdfCanvas.width;
+    const height = pdfCanvas.height;
+    
+    // Create a new overlay div that will contain our annotation canvas
+    // and position it exactly over the PDF canvas
+    const overlayDiv = document.createElement('div');
+    overlayDiv.id = 'annotation-overlay';
+    overlayDiv.style.position = 'absolute';
+    overlayDiv.style.top = `${pdfCanvasRect.top}px`;
+    overlayDiv.style.left = `${pdfCanvasRect.left}px`;
+    overlayDiv.style.width = `${width}px`;
+    overlayDiv.style.height = `${height}px`;
+    overlayDiv.style.zIndex = '20';
+    overlayDiv.style.pointerEvents = 'none';
+    
+    // Create a new canvas element
+    const newCanvas = document.createElement('canvas');
+    newCanvas.id = 'annotation-canvas';
+    newCanvas.width = width;
+    newCanvas.height = height;
+    newCanvas.style.position = 'absolute';
+    newCanvas.style.top = '0';
+    newCanvas.style.left = '0';
+    newCanvas.style.pointerEvents = 'auto';
+    
+    // Add the canvas to the overlay
+    overlayDiv.appendChild(newCanvas);
+    
+    // Add the overlay to the PDF container
+    const pdfContainer = document.querySelector('.pdf-container');
+    if (pdfContainer) {
+      pdfContainer.appendChild(overlayDiv);
+    } else {
+      console.error("PDF container not found");
       return;
     }
-
-    // Position and size the annotation canvas to match the PDF canvas
-    annotationCanvasEl.style.width = `${width}px`;
-    annotationCanvasEl.style.height = `${height}px`;
-    annotationCanvasEl.style.position = "absolute";
-    annotationCanvasEl.style.top = `${pdfCanvasRef.current.offsetTop}px`;
-    annotationCanvasEl.style.left = `${pdfCanvasRef.current.offsetLeft}px`;
-
+    
     // Create a fabric canvas with the same dimensions as the PDF
     const canvas = new fabric.Canvas("annotation-canvas", {
       width: width,
@@ -64,7 +88,7 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     setFabricInitialized(true);
     
     console.log("PDF canvas dimensions:", width, height);
-    console.log("Annotation canvas initialized");
+    console.log("Annotation canvas initialized and positioned over PDF");
   };
 
   const handleAddText = (options: {
@@ -215,10 +239,8 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
           onClose={onClose} 
           onCanvasReady={handleCanvasReady}
         />
-        <canvas 
-          id="annotation-canvas" 
-          className="absolute top-0 left-0 z-10" 
-        />
+        
+        {/* Annotation layer is created dynamically */}
       </div>
       
       {fabricInitialized && (
