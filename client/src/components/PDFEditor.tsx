@@ -43,10 +43,10 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     const width = pdfCanvas.width;
     const height = pdfCanvas.height;
     
-    // Find the container
-    const pdfContainer = document.querySelector('.pdf-container');
-    if (!pdfContainer) {
-      console.error("PDF container not found");
+    // Find the PDF wrapper (parent of the PDF canvas)
+    const pdfWrapper = document.querySelector('.pdf-wrapper');
+    if (!pdfWrapper) {
+      console.error("PDF wrapper not found");
       return;
     }
     
@@ -57,8 +57,8 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       annotationCanvas = document.createElement('canvas');
       annotationCanvas.id = 'annotation-canvas';
       
-      // Add it to the container
-      pdfContainer.appendChild(annotationCanvas);
+      // Add it to the PDF wrapper (so it's positioned directly over the PDF)
+      pdfWrapper.appendChild(annotationCanvas);
     }
     
     // Set canvas dimensions
@@ -67,8 +67,8 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     
     // Position the canvas directly over the PDF
     annotationCanvas.style.position = 'absolute';
-    annotationCanvas.style.top = `${pdfCanvas.offsetTop}px`;
-    annotationCanvas.style.left = `${pdfCanvas.offsetLeft}px`;
+    annotationCanvas.style.top = '0';
+    annotationCanvas.style.left = '0';
     annotationCanvas.style.zIndex = '20';
     annotationCanvas.style.pointerEvents = 'all'; // This ensures it captures all pointer events
     
@@ -89,15 +89,10 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     canvasRef.current = canvas;
     setFabricInitialized(true);
     
-    // Add a window resize handler to reposition the canvas
-    const handleResize = () => {
-      if (pdfCanvas && annotationCanvas) {
-        annotationCanvas.style.top = `${pdfCanvas.offsetTop}px`;
-        annotationCanvas.style.left = `${pdfCanvas.offsetLeft}px`;
-      }
-    };
-    
-    window.addEventListener('resize', handleResize);
+    // No need for a resize handler with absolute positioning relative to parent
+    // But we'll set an initial position based on the container
+    annotationCanvas.style.top = '0';
+    annotationCanvas.style.left = '0';
     
     console.log("PDF canvas dimensions:", width, height);
     console.log("Annotation canvas initialized with interactive settings");
@@ -311,8 +306,8 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full gap-4">
-      <div ref={canvasContainerRef} className="relative flex-grow">
+    <div className="flex flex-col lg:flex-row h-full gap-4 max-w-screen-2xl mx-auto">
+      <div ref={canvasContainerRef} className="relative flex-grow min-w-0">
         <PDFViewer 
           file={file} 
           onClose={onClose} 
@@ -324,11 +319,13 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       </div>
       
       {fabricInitialized && (
-        <AnnotationTools
-          onAddText={handleAddText}
-          onAddSignature={handleAddSignature}
-          onAddCheckbox={handleAddCheckbox}
-        />
+        <div className="lg:flex-shrink-0">
+          <AnnotationTools
+            onAddText={handleAddText}
+            onAddSignature={handleAddSignature}
+            onAddCheckbox={handleAddCheckbox}
+          />
+        </div>
       )}
       
       <SignatureModal

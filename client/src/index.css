@@ -52,18 +52,31 @@
   
   .pdf-container {
     position: relative;
-    overflow: hidden;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  
+  .pdf-wrapper {
+    position: relative;
+    display: inline-block;
+    margin: 0 auto;
   }
   
   .pdf-canvas {
     position: relative;
     z-index: 10;
+    display: block;
   }
   
   /* Fix for the annotation canvas */
   #annotation-canvas {
     position: absolute;
+    top: 0;
+    left: 0;
     z-index: 20;
+    pointer-events: all;
   }
   
   /* Ensure the PDF controls are always on top */
