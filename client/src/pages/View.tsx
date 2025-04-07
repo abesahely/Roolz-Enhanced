@@ -1,11 +1,13 @@
-import React, { useEffect, useState, useRef, useCallback } from "react";
-import PDFViewer from "@/PDFViewer";
+import React, { useEffect, useState } from "react";
+import PDFEditor from "@/components/PDFEditor";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useLocation } from "wouter";
-import { fabric } from "fabric";
-import { jsPDF } from "jspdf";
 
+/**
+ * View Component - Displays and allows editing of PDF files
+ * with beNext.io branded styling and annotation tools
+ */
 const View: React.FC = () => {
   const [location, setLocation] = useLocation();
   const urlParams = new URLSearchParams(window.location.search);
@@ -13,17 +15,10 @@ const View: React.FC = () => {
     ? decodeURIComponent(urlParams.get("url")!)
     : null;
   const [file, setFile] = useState<File | null>(null);
-  const [canvasDimensions, setCanvasDimensions] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const canvasRef = useRef<fabric.Canvas | null>(null);
-  const [fontSize, setFontSize] = useState(20);
-  const [textColor, setTextColor] = useState("#000000");
   const [isFetching, setIsFetching] = useState(false);
-  const [isRendering, setIsRendering] = useState(false);
 
+  // Fetch the PDF file from the provided URL
   useEffect(() => {
     if (fileUrl && !file) {
       setIsFetching(true);
@@ -51,173 +46,16 @@ const View: React.FC = () => {
     }
   }, [fileUrl]);
 
-  const handleCanvasReady = useCallback((pdfCanvas: HTMLCanvasElement) => {
-    console.log("handleCanvasReady called with canvas:", pdfCanvas);
-    if (pdfCanvas.width > 0 && pdfCanvas.height > 0) {
-      const newDimensions = {
-        width: pdfCanvas.width,
-        height: pdfCanvas.height,
-      };
-      setCanvasDimensions(newDimensions);
-
-      if (!canvasRef.current) {
-        const fabricCanvas = new fabric.Canvas("edit-canvas", {
-          width: pdfCanvas.width,
-          height: pdfCanvas.height,
-        });
-        fabricCanvas.setBackgroundColor(
-          "rgba(0,0,0,0)",
-          fabricCanvas.renderAll.bind(fabricCanvas),
-        );
-        fabricCanvas.isDrawingMode = false;
-        canvasRef.current = fabricCanvas;
-
-        const pdfRect = pdfCanvas.getBoundingClientRect();
-        const fabricRect = fabricCanvas.lowerCanvasEl.getBoundingClientRect();
-        console.log("PDF canvas position:", {
-          x: pdfRect.x,
-          y: pdfRect.y,
-          width: pdfRect.width,
-          height: pdfRect.height,
-        });
-        console.log("Fabric canvas position:", {
-          x: fabricRect.x,
-          y: pdfRect.y,
-          width: fabricRect.width,
-          height: fabricRect.height,
-        });
-
-        fabricCanvas.on("mouse:down", (e) => console.log("Mouse down:", e));
-
-        fabricCanvas.on("selection:created", () => {
-          const activeObject = fabricCanvas.getActiveObject();
-          if (activeObject && activeObject.type === "textbox") {
-            setFontSize((activeObject as fabric.Textbox).fontSize || 20);
-            setTextColor(
-              ((activeObject as fabric.Textbox).fill as string) || "#000000",
-            );
-          }
-        });
-        fabricCanvas.on("selection:updated", () => {
-          const activeObject = fabricCanvas.getActiveObject();
-          if (activeObject && activeObject.type === "textbox") {
-            setFontSize((activeObject as fabric.Textbox).fontSize || 20);
-            setTextColor(
-              ((activeObject as fabric.Textbox).fill as string) || "#000000",
-            );
-          }
-        });
-      }
-      setIsRendering(false);
-    }
-  }, []); // Empty dependency array to ensure the function doesn't change
-
-  const addTextBox = () => {
-    if (canvasRef.current) {
-      const textBox = new fabric.Textbox("Type here", {
-        left: 50,
-        top: 50,
-        width: 200,
-        fontSize: fontSize,
-        fill: textColor,
-        editable: true,
-        borderColor: "#0000ff",
-        cornerColor: "#0000ff",
-        hasControls: true,
-        hasBorders: true,
-        lockScalingFlip: true,
-        lockUniScaling: false,
-      });
-      canvasRef.current.add(textBox);
-      canvasRef.current.setActiveObject(textBox);
-      canvasRef.current.renderAll();
-      console.log("Text box added");
-    }
-  };
-
-  const addSignatureBox = () => {
-    if (canvasRef.current) {
-      const sigBox = new fabric.Textbox("Sign here", {
-        left: 50,
-        top: 100,
-        width: 150,
-        fontSize: fontSize,
-        fill: textColor,
-        editable: true,
-        borderColor: "#ff0000",
-        cornerColor: "#ff0000",
-        fontFamily: "Times New Roman",
-        hasControls: true,
-        hasBorders: true,
-        lockScalingFlip: true,
-        lockUniScaling: false,
-      });
-      canvasRef.current.add(sigBox);
-      canvasRef.current.setActiveObject(sigBox);
-      canvasRef.current.renderAll();
-      console.log("Signature box added");
-    }
-  };
-
-  const updateTextProperties = () => {
-    if (canvasRef.current) {
-      const activeObject = canvasRef.current.getActiveObject();
-      if (activeObject && activeObject.type === "textbox") {
-        (activeObject as fabric.Textbox).set({ fontSize, fill: textColor });
-        canvasRef.current.renderAll();
-      }
-    }
-  };
-
-  const savePDF = async () => {
-    if (canvasRef.current && file) {
-      const pdfCanvas = document.getElementById(
-        "pdf-canvas",
-      ) as HTMLCanvasElement;
-      const pdfDataUrl = pdfCanvas.toDataURL("image/png");
-      const fabricDataUrl = canvasRef.current.toDataURL("image/png");
-
-      const pdf = new jsPDF({
-        orientation:
-          pdfCanvas.width > pdfCanvas.height ? "landscape" : "portrait",
-        unit: "px",
-        format: [pdfCanvas.width, pdfCanvas.height],
-      });
-
-      pdf.addImage(pdfDataUrl, "PNG", 0, 0, pdfCanvas.width, pdfCanvas.height);
-      pdf.addImage(
-        fabricDataUrl,
-        "PNG",
-        0,
-        0,
-        pdfCanvas.width,
-        pdfCanvas.height,
-      );
-      pdf.save("edited-document.pdf");
-    }
-  };
-
   const handleGoBack = () => {
     const path = "/";
     setLocation(path.replace(/\/+/g, "/"));
   };
 
-  useEffect(() => {
-    if (file && !canvasDimensions) {
-      console.log("Setting isRendering to true. File:", file);
-      setIsRendering(true);
-    }
-  }, [file, canvasDimensions]);
+  const handleCloseEditor = () => {
+    handleGoBack();
+  };
 
-  useEffect(() => {
-    return () => {
-      if (canvasRef.current) {
-        canvasRef.current.dispose();
-        canvasRef.current = null;
-      }
-    };
-  }, []);
-
+  // Error view
   if (error) {
     return (
       <div className="min-h-screen bg-benext-blue text-benext-white">
@@ -227,7 +65,7 @@ const View: React.FC = () => {
           <p>{error}</p>
           <button
             onClick={handleGoBack}
-            className="mt-4 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+            className="mt-4 px-4 py-2 btn-orange rounded hover:bg-opacity-90"
           >
             Go Back
           </button>
@@ -237,6 +75,7 @@ const View: React.FC = () => {
     );
   }
 
+  // Loading view
   if (!file) {
     return (
       <div className="min-h-screen bg-benext-blue text-benext-white">
@@ -252,83 +91,14 @@ const View: React.FC = () => {
     );
   }
 
+  // PDF Editor view
   return (
     <div className="min-h-screen bg-benext-blue">
       <Header />
       <main className="container mx-auto px-4 py-6">
-        <h1 className="text-benext-white text-2xl mb-6">View Document</h1>
-        {isRendering && (
-          <p className="text-benext-white mb-4">
-            Rendering PDF, please wait...
-          </p>
-        )}
-        <div className="mb-4 space-x-2">
-          <button
-            onClick={addTextBox}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-          >
-            Add Text Box
-          </button>
-          <button
-            onClick={addSignatureBox}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-          >
-            Add Signature Box
-          </button>
-          <button
-            onClick={savePDF}
-            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Save PDF
-          </button>
-        </div>
-        <div className="mb-4 space-x-2">
-          <label className="text-benext-white">
-            Font Size:
-            <input
-              type="number"
-              value={fontSize}
-              onChange={(e) => {
-                setFontSize(Number(e.target.value));
-                updateTextProperties();
-              }}
-              className="ml-2 p-1 rounded text-black bg-white"
-              min="10"
-              max="100"
-            />
-          </label>
-          <label className="text-benext-white">
-            Text Color:
-            <input
-              type="color"
-              value={textColor}
-              onChange={(e) => {
-                setTextColor(e.target.value);
-                updateTextProperties();
-              }}
-              className="ml-2"
-            />
-          </label>
-        </div>
-        <div
-          id="canvas-container"
-          style={{
-            position: "relative",
-            width: canvasDimensions ? `${canvasDimensions.width}px` : "595px",
-            height: canvasDimensions ? `${canvasDimensions.height}px` : "842px",
-            display: isRendering ? "none" : "block",
-          }}
-        >
-          {file && <PDFViewer file={file} onCanvasReady={handleCanvasReady} />}
-          <canvas
-            id="edit-canvas"
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              zIndex: 10,
-            }}
-          />
+        <h1 className="text-benext-white text-2xl mb-6">Edit Document</h1>
+        <div className="bg-benext-blue bg-opacity-20 rounded-lg p-2 h-[75vh]">
+          <PDFEditor file={file} onClose={handleCloseEditor} />
         </div>
       </main>
       <Footer />
