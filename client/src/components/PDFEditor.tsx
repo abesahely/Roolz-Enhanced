@@ -43,34 +43,38 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     const width = pdfCanvas.width;
     const height = pdfCanvas.height;
     
-    // Find the PDF wrapper (parent of the PDF canvas)
-    const pdfWrapper = document.querySelector('.pdf-wrapper');
+    // Find the PDF wrapper element with ID
+    const pdfWrapper = document.getElementById('pdf-wrapper');
     if (!pdfWrapper) {
       console.error("PDF wrapper not found");
       return;
     }
     
-    // Create canvas element if it doesn't exist
-    let annotationCanvas = document.getElementById('annotation-canvas') as HTMLCanvasElement;
-    if (!annotationCanvas) {
-      // Create a new canvas element
-      annotationCanvas = document.createElement('canvas');
-      annotationCanvas.id = 'annotation-canvas';
-      
-      // Add it to the PDF wrapper (so it's positioned directly over the PDF)
-      pdfWrapper.appendChild(annotationCanvas);
+    // Remove any existing annotation canvas to avoid duplicates
+    const existingCanvas = document.getElementById('annotation-canvas');
+    if (existingCanvas) {
+      existingCanvas.remove();
     }
     
-    // Set canvas dimensions
+    // Create a new canvas element
+    const annotationCanvas = document.createElement('canvas');
+    annotationCanvas.id = 'annotation-canvas';
+    
+    // Set canvas dimensions to match PDF
     annotationCanvas.width = width;
     annotationCanvas.height = height;
     
-    // Position the canvas directly over the PDF
-    annotationCanvas.style.position = 'absolute';
-    annotationCanvas.style.top = '0';
-    annotationCanvas.style.left = '0';
-    annotationCanvas.style.zIndex = '20';
-    annotationCanvas.style.pointerEvents = 'all'; // This ensures it captures all pointer events
+    // Set explicit inline styles with high specificity
+    annotationCanvas.style.cssText = `
+      position: absolute !important;
+      top: 0 !important;
+      left: 0 !important;
+      z-index: 100 !important;
+      pointer-events: all !important;
+    `;
+    
+    // Add it to the PDF wrapper
+    pdfWrapper.appendChild(annotationCanvas);
     
     // Create a fabric canvas with the same dimensions as the PDF
     const canvas = new fabric.Canvas("annotation-canvas", {
@@ -78,21 +82,25 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       height: height,
       backgroundColor: "transparent",
       selection: true, // Allow selection
-      interactive: true // Ensure fabric's interactivity is on
+      interactive: true, // Ensure fabric's interactivity is on
+      renderOnAddRemove: true,
+      controlsAboveOverlay: true
     });
     
     // Make sure all objects are selectable by default
     fabric.Object.prototype.selectable = true;
+    fabric.Object.prototype.hasControls = true;
+    fabric.Object.prototype.hasBorders = true;
     fabric.Object.prototype.evented = true;
+    
+    // Force a proper render
+    setTimeout(() => {
+      canvas.renderAll();
+    }, 100);
     
     // Store the canvas reference
     canvasRef.current = canvas;
     setFabricInitialized(true);
-    
-    // No need for a resize handler with absolute positioning relative to parent
-    // But we'll set an initial position based on the container
-    annotationCanvas.style.top = '0';
-    annotationCanvas.style.left = '0';
     
     console.log("PDF canvas dimensions:", width, height);
     console.log("Annotation canvas initialized with interactive settings");
