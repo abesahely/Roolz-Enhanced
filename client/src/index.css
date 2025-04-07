@@ -14,19 +14,32 @@
     font-family: 'Roboto', sans-serif;
     @apply bg-benext-blue text-benext-white antialiased;
   }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold;
+  }
 }
 
 @layer components {
   .dropzone {
-    @apply border-2 border-dashed border-benext-teal transition-all duration-300;
+    @apply border-2 border-dashed border-benext-orange transition-all duration-300;
   }
   
   .dropzone.active {
-    @apply border-benext-white bg-benext-teal bg-opacity-10;
+    @apply border-benext-white bg-benext-orange bg-opacity-10;
   }
   
+  .btn-orange {
+    @apply bg-benext-orange text-benext-blue font-medium transition-all duration-200;
+  }
+  
+  .btn-orange:hover {
+    @apply bg-opacity-90;
+  }
+  
+  /* Keep the old class temporarily for backward compatibility */
   .btn-teal {
-    @apply bg-benext-teal text-benext-blue font-medium transition-all duration-200;
+    @apply bg-benext-orange text-benext-blue font-medium transition-all duration-200;
   }
   
   .btn-teal:hover {

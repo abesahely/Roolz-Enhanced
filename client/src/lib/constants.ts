@@ -2,8 +2,8 @@
  * Constants for beNext.io branding
  */
 export const BRAND_COLORS = {
-  BLUE: '#1E3A8A',
-  TEAL: '#2DD4BF',
+  BLUE: '#0A1E45',
+  ORANGE: '#F4871F',
   WHITE: '#FFFFFF',
   GRAY: {
     100: '#F3F4F6',

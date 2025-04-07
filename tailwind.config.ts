@@ -63,8 +63,8 @@ export default {
         },
         // beNext.io branding colors
         benext: {
-          blue: '#1E3A8A',
-          teal: '#2DD4BF',
+          blue: '#0A1E45', // Dark navy blue from the screenshot
+          orange: '#F4871F', // Orange from the beNEXT logo
           white: '#FFFFFF',
           gray: {
             100: '#F3F4F6',

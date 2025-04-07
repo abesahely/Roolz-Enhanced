@@ -67,19 +67,19 @@ export const DragDropUpload: React.FC<DragDropUploadProps> = ({
     >
       {isUploading ? (
         <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-benext-teal mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-benext-orange mb-4"></div>
           <p>Processing document...</p>
         </div>
       ) : (
         <>
-          <div className="text-benext-teal mb-4 text-5xl">
+          <div className="text-benext-orange mb-4 text-5xl">
             <i className="fas fa-file-pdf"></i>
           </div>
           <p className="text-center mb-2">Drag and drop your PDF here</p>
           <p className="text-benext-gray-400 text-sm text-center mb-4">
             or click to browse files
           </p>
-          <button className="btn-teal px-4 py-2 rounded-md">Select File</button>
+          <button className="btn-orange px-4 py-2 rounded-md">Select File</button>
           <input
             type="file"
             ref={fileInputRef}
