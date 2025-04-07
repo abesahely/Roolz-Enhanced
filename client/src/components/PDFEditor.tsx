@@ -102,12 +102,36 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     canvasRef.current = canvas;
     setFabricInitialized(true);
     
+    // Set up the fabric canvas to work in text editing mode
+    // This helps make sure the canvas is properly initialized with all settings
+    canvas.setZoom(1);
+    canvas.selection = true;
+    canvas.interactive = true;
+    canvas.enableRetinaScaling = true;
+    
+    // Make all objects selectable and visible by default
+    fabric.Object.prototype.transparentCorners = false;
+    fabric.Object.prototype.cornerColor = '#F4871F';
+    fabric.Object.prototype.cornerStyle = 'circle';
+    
     // Add keyboard event listener for deleting selected objects
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Only proceed if we have an active canvas
+      if (!canvas) return;
+      
       // Check if Delete or Backspace is pressed
-      if ((e.key === 'Delete' || e.key === 'Backspace') && canvas) {
+      if ((e.key === 'Delete' || e.key === 'Backspace')) {
         const activeObject = canvas.getActiveObject();
         if (activeObject) {
+          // Skip if we're actively editing a textbox (check if there's an active text input)
+          if (document.activeElement && 
+              (document.activeElement.tagName.toLowerCase() === 'input' || 
+               document.activeElement.tagName.toLowerCase() === 'textarea' ||
+               (activeObject as any).isEditing === true)) {
+            return; // Let the default behavior happen for text editing
+          }
+          
+          // Delete the object
           canvas.remove(activeObject);
           canvas.renderAll();
           e.preventDefault(); // Prevent browser's back navigation on backspace
@@ -173,6 +197,7 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     canvasRef.current.add(textbox);
     canvasRef.current.setActiveObject(textbox);
     canvasRef.current.renderAll();
+    console.log("Text annotation added");
   };
 
   const handleAddSignature = () => {
@@ -208,6 +233,7 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     canvasRef.current.add(signatureBox);
     canvasRef.current.setActiveObject(signatureBox);
     canvasRef.current.renderAll();
+    console.log("Signature annotation added");
   };
 
   const handleAddCheckbox = () => {
@@ -278,6 +304,7 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     canvasRef.current.add(group);
     canvasRef.current.setActiveObject(group);
     canvasRef.current.renderAll();
+    console.log("Checkbox annotation added");
   };
   
   // Function to save the PDF with annotations
