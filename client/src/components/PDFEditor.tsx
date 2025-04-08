@@ -102,6 +102,10 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     canvasRef.current = canvas;
     setFabricInitialized(true);
     
+    // Store the canvas in the window object so it can be accessed from PDFViewer
+    // This allows us to synchronize scaling between the PDF and the annotations
+    (window as any).fabricCanvas = canvas;
+    
     // Set up the fabric canvas to work in text editing mode
     // This helps make sure the canvas is properly initialized with all settings
     canvas.setZoom(1);
@@ -141,11 +145,15 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     
     document.addEventListener('keydown', handleKeyDown);
     
-    // Add cleanup function to remove event listener
+    // Add cleanup function to remove event listener and cleanup window references
     const cleanup = () => {
       document.removeEventListener('keydown', handleKeyDown);
       if (canvas) {
         canvas.dispose();
+        // Remove reference to canvas in window object
+        if ((window as any).fabricCanvas === canvas) {
+          delete (window as any).fabricCanvas;
+        }
       }
     };
     
@@ -409,78 +417,98 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       
       console.log("Preparing to download annotated PDF:", annotatedName);
       
-      try {
-        // Create a download URL
-        const url = URL.createObjectURL(blob);
-        console.log("Blob URL created for annotated PDF");
-        
-        // Determine if we're on mobile
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        if (isMobile) {
-          // For mobile browsers, especially iOS, we'll try opening in a new tab
-          console.log("Mobile browser detected, opening annotated PDF in new tab");
-          window.open(url, '_blank');
-          
-          // We need to keep the URL around longer on mobile
-          setTimeout(() => {
-            URL.revokeObjectURL(url);
-            console.log("Revoked URL after mobile view");
-          }, 5000);
-          return;
+      // Create a download dialog for manual interaction
+      console.log("Creating download dialog for annotated PDF");
+      const downloadUrl = URL.createObjectURL(blob);
+      
+      // Create a visible button element which the user can directly interact with
+      // This helps on iOS where automatic clicks are often blocked
+      const downloadArea = document.createElement('div');
+      downloadArea.style.position = 'fixed';
+      downloadArea.style.top = '50%';
+      downloadArea.style.left = '50%';
+      downloadArea.style.transform = 'translate(-50%, -50%)';
+      downloadArea.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+      downloadArea.style.color = 'white';
+      downloadArea.style.padding = '20px';
+      downloadArea.style.borderRadius = '8px';
+      downloadArea.style.zIndex = '10000';
+      downloadArea.style.textAlign = 'center';
+      
+      // Add explanation text
+      const message = document.createElement('p');
+      message.textContent = 'Your annotated PDF is ready. Tap the button below to download or view it.';
+      message.style.marginBottom = '15px';
+      downloadArea.appendChild(message);
+      
+      // Create the download button
+      const downloadButton = document.createElement('a');
+      downloadButton.href = downloadUrl;
+      downloadButton.download = annotatedName;
+      downloadButton.textContent = 'Download Annotated PDF';
+      downloadButton.style.display = 'inline-block';
+      downloadButton.style.backgroundColor = '#F4871F';
+      downloadButton.style.color = 'white';
+      downloadButton.style.padding = '10px 15px';
+      downloadButton.style.borderRadius = '4px';
+      downloadButton.style.textDecoration = 'none';
+      downloadButton.style.fontWeight = 'bold';
+      downloadButton.style.cursor = 'pointer';
+      downloadButton.style.marginBottom = '10px';
+      downloadArea.appendChild(downloadButton);
+      
+      // Add a view button for mobile users who can't download
+      const viewButton = document.createElement('a');
+      viewButton.href = downloadUrl;
+      viewButton.target = '_blank';
+      viewButton.textContent = 'View PDF';
+      viewButton.style.display = 'inline-block';
+      viewButton.style.backgroundColor = '#0A1E45';
+      viewButton.style.color = 'white';
+      viewButton.style.padding = '10px 15px';
+      viewButton.style.borderRadius = '4px';
+      viewButton.style.textDecoration = 'none';
+      viewButton.style.fontWeight = 'bold';
+      viewButton.style.cursor = 'pointer';
+      viewButton.style.marginLeft = '10px';
+      viewButton.style.marginBottom = '10px';
+      downloadArea.appendChild(viewButton);
+      
+      // Add a close button
+      const closeButton = document.createElement('button');
+      closeButton.textContent = 'Close';
+      closeButton.style.display = 'block';
+      closeButton.style.backgroundColor = '#666';
+      closeButton.style.color = 'white';
+      closeButton.style.border = 'none';
+      closeButton.style.padding = '8px 15px';
+      closeButton.style.borderRadius = '4px';
+      closeButton.style.margin = '10px auto 0';
+      closeButton.style.cursor = 'pointer';
+      closeButton.onclick = () => {
+        document.body.removeChild(downloadArea);
+        URL.revokeObjectURL(downloadUrl);
+      };
+      downloadArea.appendChild(closeButton);
+      
+      // Add note for iOS users
+      const iOSNote = document.createElement('p');
+      iOSNote.textContent = 'On iOS: If download doesn\'t start, tap and hold the button, then choose "Download Linked File" or "Open in New Tab".';
+      iOSNote.style.fontSize = '12px';
+      iOSNote.style.marginTop = '10px';
+      iOSNote.style.opacity = '0.8';
+      downloadArea.appendChild(iOSNote);
+      
+      // Add to body
+      document.body.appendChild(downloadArea);
+      
+      // Auto-cleanup after 60 seconds if user doesn't close manually
+      setTimeout(() => {
+        if (document.body.contains(downloadArea)) {
+          document.body.removeChild(downloadArea);
+          URL.revokeObjectURL(downloadUrl);
         }
-        
-        // For desktop browsers, use the download attribute
-        console.log("Desktop browser detected, using download attribute for annotated PDF");
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = annotatedName;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        
-        console.log("Triggering download for annotated PDF...");
-        a.click();
-        
-        // Clean up, but give browser time to start the download
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          console.log("Annotated PDF download cleanup completed");
-        }, 1000);
-      } catch (downloadError) {
-        console.error("Error in download process:", downloadError);
-        
-        // Fallback for browsers where the above method fails
-        try {
-          console.log("Attempting fallback download method for annotated PDF");
-          // Create an iframe to trick browsers that block downloads
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          document.body.appendChild(iframe);
-          
-          const iframeDoc = iframe.contentWindow!.document;
-          const downloadLink = iframeDoc.createElement('a');
-          
-          // Create a new blob URL in this context
-          const fallbackUrl = URL.createObjectURL(blob);
-          downloadLink.href = fallbackUrl;
-          downloadLink.download = annotatedName;
-          iframeDoc.body.appendChild(downloadLink);
-          downloadLink.click();
-          
-          // Clean up after delay
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-            URL.revokeObjectURL(fallbackUrl);
-            console.log("Fallback annotated PDF download cleanup completed");
-          }, 1000);
-        } catch (fallbackError) {
-          console.error("Even fallback download failed for annotated PDF:", fallbackError);
-          
-          // Last resort: simply open in a new window/tab
-          window.open(URL.createObjectURL(blob), '_blank');
-        }
-      }
+      }, 60000);
       
       console.log("PDF saved with annotations!");
     } catch (error) {

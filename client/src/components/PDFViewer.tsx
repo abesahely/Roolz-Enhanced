@@ -78,6 +78,62 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
       };
 
       await page.render(renderContext).promise;
+      
+      // Resize the annotation canvas if it exists
+      const annotationCanvas = document.getElementById('annotation-canvas') as HTMLCanvasElement;
+      if (annotationCanvas) {
+        console.log(`Resizing annotation canvas to match PDF: ${viewport.width}x${viewport.height} at scale ${currentScale}`);
+        
+        // Find the fabric canvas instance
+        const fabricCanvasElement = document.querySelector('.canvas-container') as HTMLElement;
+        if (fabricCanvasElement) {
+          // Set the container size
+          fabricCanvasElement.style.width = `${viewport.width}px`;
+          fabricCanvasElement.style.height = `${viewport.height}px`;
+          
+          // Get the fabric canvas from the window object if available
+          const fabricCanvas = (window as any).fabricCanvas;
+          
+          if (fabricCanvas) {
+            // Update canvas dimensions
+            fabricCanvas.setWidth(viewport.width);
+            fabricCanvas.setHeight(viewport.height);
+            
+            // If we're changing the scale, update the zoom level of the fabric canvas
+            if (newScale && newScale !== scale) {
+              // Save current objects' positions
+              const objects = fabricCanvas.getObjects();
+              const oldScale = scale;
+              const scaleRatio = newScale / oldScale;
+              
+              if (scaleRatio !== 1) {
+                // Scale all objects
+                objects.forEach((obj: any) => {
+                  const oldLeft = obj.left;
+                  const oldTop = obj.top;
+                  const oldScaleX = obj.scaleX;
+                  const oldScaleY = obj.scaleY;
+                  
+                  // Calculate new position based on scale ratio
+                  obj.left = oldLeft * scaleRatio;
+                  obj.top = oldTop * scaleRatio;
+                  
+                  // If it's not a group (which scales internally)
+                  if (!obj.isType('group')) {
+                    obj.scaleX = oldScaleX * scaleRatio;
+                    obj.scaleY = oldScaleY * scaleRatio;
+                  }
+                  
+                  obj.setCoords();
+                });
+              }
+            }
+            
+            // Render the changes
+            fabricCanvas.renderAll();
+          }
+        }
+      }
     } catch (error) {
       console.error("Error rendering page:", error);
     }
@@ -102,89 +158,88 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
     }
   };
 
-  const handleDownload = async () => {
-    if (file) {
-      try {
-        console.log("Starting download process for original PDF...");
-        
-        // Create a blob from the file directly
-        const fileData = await file.arrayBuffer();
-        const blob = new Blob([fileData], { type: 'application/pdf' });
-        
-        // Create blob URL
-        const url = URL.createObjectURL(blob);
-        console.log("Created blob URL for download");
-        
-        // Create filename - use original or default
-        const fileName = file.name || "document.pdf";
-        
-        // Determine if we're on mobile
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        
-        if (isMobile) {
-          // For mobile browsers, especially iOS, we'll try opening in a new tab
-          console.log("Mobile browser detected, opening in new tab");
-          window.open(url, '_blank');
-          
-          // We need to keep the URL around longer on mobile
-          setTimeout(() => {
-            URL.revokeObjectURL(url);
-            console.log("Revoked URL after mobile view");
-          }, 5000);
-          return;
-        }
-        
-        // For desktop browsers, use the download attribute
-        console.log("Desktop browser detected, using download attribute");
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = fileName;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        
-        console.log("Triggering download...");
-        a.click();
-        
-        // Clean up
-        // Give browser time to process the download
-        setTimeout(() => {
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          console.log("Download cleanup completed");
-        }, 1000);
-      } catch (error) {
-        console.error("Error downloading file:", error);
-        
-        // Fallback for browsers where the above method fails
-        try {
-          console.log("Attempting fallback download method");
-          // Create an iframe to trick browsers that block downloads
-          const iframe = document.createElement('iframe');
-          iframe.style.display = 'none';
-          document.body.appendChild(iframe);
-          
-          const iframeDoc = iframe.contentWindow!.document;
-          const downloadLink = iframeDoc.createElement('a');
-          downloadLink.href = URL.createObjectURL(file);
-          downloadLink.download = file.name;
-          iframeDoc.body.appendChild(downloadLink);
-          downloadLink.click();
-          
-          // Clean up after delay
-          setTimeout(() => {
-            document.body.removeChild(iframe);
-            console.log("Fallback download cleanup completed");
-          }, 1000);
-        } catch (fallbackError) {
-          console.error("Even fallback download failed:", fallbackError);
-          
-          // Last resort: simply open in a new window/tab
-          window.open(URL.createObjectURL(file), '_blank');
-        }
-      }
-    } else {
+  const handleDownload = () => {
+    if (!file) {
       console.error("No file available to download");
+      return;
     }
+    
+    console.log("Starting download process for original PDF...");
+    
+    // This is a direct approach that works on most browsers including mobile
+    const downloadUrl = URL.createObjectURL(new Blob([file], { type: 'application/pdf' }));
+    
+    // Create a visible button element which the user can directly interact with
+    // This helps on iOS where automatic clicks are often blocked
+    const downloadArea = document.createElement('div');
+    downloadArea.style.position = 'fixed';
+    downloadArea.style.top = '50%';
+    downloadArea.style.left = '50%';
+    downloadArea.style.transform = 'translate(-50%, -50%)';
+    downloadArea.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+    downloadArea.style.color = 'white';
+    downloadArea.style.padding = '20px';
+    downloadArea.style.borderRadius = '8px';
+    downloadArea.style.zIndex = '10000';
+    downloadArea.style.textAlign = 'center';
+    
+    // Add explanation text
+    const message = document.createElement('p');
+    message.textContent = 'Your PDF is ready. Tap the button below to download or view it.';
+    message.style.marginBottom = '15px';
+    downloadArea.appendChild(message);
+    
+    // Create the download button
+    const downloadButton = document.createElement('a');
+    downloadButton.href = downloadUrl;
+    downloadButton.download = file.name || 'document.pdf';
+    downloadButton.textContent = 'Download PDF';
+    downloadButton.style.display = 'inline-block';
+    downloadButton.style.backgroundColor = '#F4871F';
+    downloadButton.style.color = 'white';
+    downloadButton.style.padding = '10px 15px';
+    downloadButton.style.borderRadius = '4px';
+    downloadButton.style.textDecoration = 'none';
+    downloadButton.style.fontWeight = 'bold';
+    downloadButton.style.cursor = 'pointer';
+    downloadButton.style.marginBottom = '10px';
+    downloadArea.appendChild(downloadButton);
+    
+    // Add a close button
+    const closeButton = document.createElement('button');
+    closeButton.textContent = 'Close';
+    closeButton.style.display = 'block';
+    closeButton.style.backgroundColor = '#666';
+    closeButton.style.color = 'white';
+    closeButton.style.border = 'none';
+    closeButton.style.padding = '8px 15px';
+    closeButton.style.borderRadius = '4px';
+    closeButton.style.margin = '10px auto 0';
+    closeButton.style.cursor = 'pointer';
+    closeButton.onclick = () => {
+      document.body.removeChild(downloadArea);
+      URL.revokeObjectURL(downloadUrl);
+    };
+    downloadArea.appendChild(closeButton);
+    
+    // Add note for iOS users
+    const iOSNote = document.createElement('p');
+    iOSNote.textContent = 'On iOS: If download doesn\'t start, tap and hold the button, then choose "Download Linked File" or "Open in New Tab".';
+    iOSNote.style.fontSize = '12px';
+    iOSNote.style.marginTop = '10px';
+    iOSNote.style.opacity = '0.8';
+    downloadArea.appendChild(iOSNote);
+    
+    // Add to body
+    document.body.appendChild(downloadArea);
+    
+    // Auto-cleanup after 60 seconds if user doesn't close manually
+    setTimeout(() => {
+      if (document.body.contains(downloadArea)) {
+        document.body.removeChild(downloadArea);
+        URL.revokeObjectURL(downloadUrl);
+      }
+    }, 60000);
   };
 
   return (
@@ -223,47 +278,50 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
       {/* PDF Viewer Area */}
       <div className="relative bg-benext-gray-100 rounded-lg overflow-hidden" style={{ height: "70vh" }}>
         {/* PDF Render Canvas */}
-        <div className="w-full h-full flex items-center justify-center overflow-auto pdf-container" style={{ maxHeight: "calc(70vh - 50px)" }}>
-          <div className="pdf-wrapper relative" id="pdf-wrapper">
+        <div className="w-full h-full overflow-auto pdf-container" style={{ maxHeight: "calc(70vh - 50px)" }}>
+          <div className="pdf-wrapper relative flex items-center justify-center min-h-full" id="pdf-wrapper">
             <canvas ref={canvasRef} className="pdf-canvas" style={{ position: 'relative', zIndex: 1 }} />
             {/* Annotation canvas will be placed here by PDFEditor */}
           </div>
         </div>
 
         {/* PDF Controls (Bottom) */}
-        <div className="pdf-controls flex justify-between items-center">
+        <div className="pdf-controls flex justify-between items-center bg-benext-blue py-2 px-4 rounded-b-lg border-t border-benext-gray-600">
           <div className="flex items-center space-x-3">
             <button
-              className="text-white hover:text-benext-teal"
+              className="text-white hover:text-benext-orange focus:outline-none transition-colors duration-150"
               title="Previous Page"
               onClick={prevPage}
               disabled={currentPage <= 1}
+              style={{ opacity: currentPage <= 1 ? 0.5 : 1 }}
             >
               <i className="fas fa-chevron-left"></i>
             </button>
-            <span className="text-white text-sm">
+            <span className="text-white text-sm font-medium">
               Page {currentPage} of {totalPages}
             </span>
             <button
-              className="text-white hover:text-benext-teal"
+              className="text-white hover:text-benext-orange focus:outline-none transition-colors duration-150"
               title="Next Page"
               onClick={nextPage}
               disabled={currentPage >= totalPages}
+              style={{ opacity: currentPage >= totalPages ? 0.5 : 1 }}
             >
               <i className="fas fa-chevron-right"></i>
             </button>
           </div>
           <div className="flex items-center space-x-3">
             <button
-              className="text-white hover:text-benext-teal"
+              className="text-white hover:text-benext-orange focus:outline-none transition-colors duration-150"
               title="Zoom Out"
               onClick={() => changeZoom(scale - 0.25)}
               disabled={scale <= 0.5}
+              style={{ opacity: scale <= 0.5 ? 0.5 : 1 }}
             >
               <i className="fas fa-search-minus"></i>
             </button>
             <select
-              className="bg-benext-blue text-white text-sm border border-benext-gray-600 rounded px-2 py-1"
+              className="bg-benext-blue text-white text-sm border border-benext-gray-500 rounded px-2 py-1 focus:outline-none focus:border-benext-orange"
               value={scale}
               onChange={(e) => changeZoom(parseFloat(e.target.value))}
             >
@@ -275,10 +333,11 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
               <option value="2">200%</option>
             </select>
             <button
-              className="text-white hover:text-benext-teal"
+              className="text-white hover:text-benext-orange focus:outline-none transition-colors duration-150"
               title="Zoom In"
               onClick={() => changeZoom(scale + 0.25)}
               disabled={scale >= 2}
+              style={{ opacity: scale >= 2 ? 0.5 : 1 }}
             >
               <i className="fas fa-search-plus"></i>
             </button>
