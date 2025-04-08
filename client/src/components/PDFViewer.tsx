@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { pdfjsLib } from "../pdfjs-worker-setup";
 import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { saveAs } from 'file-saver';
@@ -21,10 +21,13 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   onPageChange
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
   const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1.0);
+  const [autoScale, setAutoScale] = useState(true);
+  const [originalPdfWidth, setOriginalPdfWidth] = useState(0);
 
   // Effect to handle page changes
   useEffect(() => {
@@ -35,6 +38,46 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
 
   
+  // Calculate optimal scale based on container size
+  const calculateOptimalScale = useCallback((pdfWidth: number) => {
+    if (!containerRef.current || !pdfWidth) return 1;
+    
+    // Get the container width
+    const containerWidth = containerRef.current.clientWidth;
+    // Apply a small margin for aesthetics
+    const availableWidth = containerWidth - 40; // 20px padding on each side
+    
+    // Calculate optimal scale and round to 2 decimal places
+    const optimalScale = Math.max(0.5, Math.min(2, availableWidth / pdfWidth));
+    return Math.round(optimalScale * 100) / 100;
+  }, []);
+
+  // Effect to handle window resize and adjust scale
+  useEffect(() => {
+    if (!originalPdfWidth || !autoScale) return;
+
+    const handleResize = () => {
+      const newScale = calculateOptimalScale(originalPdfWidth);
+      if (newScale !== scale) {
+        setScale(newScale);
+        if (pdfDoc) {
+          renderPage(pdfDoc, currentPage, newScale);
+        }
+      }
+    };
+
+    // Initial calculation
+    handleResize();
+
+    // Add resize event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [originalPdfWidth, autoScale, calculateOptimalScale, pdfDoc, currentPage, scale]);
+
   // Effect to load PDF
   useEffect(() => {
     if (!file) return;
@@ -52,6 +95,13 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         setPdfDoc(pdfDoc);
         setTotalPages(pdfDoc.numPages);
         
+        // Get the first page to determine PDF dimensions
+        const firstPage = await pdfDoc.getPage(1);
+        const viewport = firstPage.getViewport({ scale: 1.0 });
+        
+        // Store the original PDF width for responsive calculations
+        setOriginalPdfWidth(viewport.width);
+        
         // Render the initial page (which might be different from 1)
         const pageToRender = initialPage > 0 && initialPage <= pdfDoc.numPages 
           ? initialPage 
@@ -60,8 +110,15 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         // Set current page state to the initial page
         setCurrentPage(pageToRender);
         
-        // Render the page
-        await renderPage(pdfDoc, pageToRender);
+        // Calculate optimal scale based on container size (if autoScale is enabled)
+        if (autoScale && containerRef.current) {
+          const newScale = calculateOptimalScale(viewport.width);
+          setScale(newScale);
+          await renderPage(pdfDoc, pageToRender, newScale);
+        } else {
+          // Use current scale
+          await renderPage(pdfDoc, pageToRender);
+        }
         
         // Notify parent component that canvas is ready
         if (onCanvasReady && canvasRef.current) {
@@ -73,7 +130,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     };
 
     loadPDF();
-  }, [file, onCanvasReady]);
+  }, [file, onCanvasReady, autoScale, calculateOptimalScale]);
   
   // Effect to handle initialPage changes
   useEffect(() => {
@@ -197,9 +254,26 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   };
 
   const changeZoom = async (newScale: number) => {
+    // When manually changing zoom, disable auto-scaling
+    setAutoScale(false);
     setScale(newScale);
     if (pdfDoc) {
       await renderPage(pdfDoc, currentPage, newScale);
+    }
+  };
+  
+  // Toggle auto-scaling on/off
+  const toggleAutoScale = async () => {
+    const newAutoScale = !autoScale;
+    setAutoScale(newAutoScale);
+    
+    // If turning on auto-scaling, recalculate scale based on container width
+    if (newAutoScale && originalPdfWidth && containerRef.current) {
+      const newScale = calculateOptimalScale(originalPdfWidth);
+      setScale(newScale);
+      if (pdfDoc) {
+        await renderPage(pdfDoc, currentPage, newScale);
+      }
     }
   };
 
@@ -319,6 +393,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
       <div className="relative bg-benext-gray-100 rounded-lg overflow-hidden" style={{ height: "70vh" }}>
         {/* PDF Render Canvas */}
         <div 
+          ref={containerRef}
           className="w-full h-full overflow-auto pdf-container" 
           style={{ 
             maxHeight: "calc(70vh - 50px)",
@@ -392,6 +467,15 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
               style={{ opacity: scale >= 2 ? 0.5 : 1 }}
             >
               <i className="fas fa-search-plus"></i>
+            </button>
+            
+            {/* Auto-scale toggle button */}
+            <button
+              className={`text-white hover:text-benext-orange focus:outline-none transition-colors duration-150 ml-2 ${autoScale ? 'text-benext-orange' : ''}`}
+              title={autoScale ? "Auto-scale is ON" : "Auto-scale is OFF"}
+              onClick={toggleAutoScale}
+            >
+              <i className="fas fa-expand-arrows-alt"></i>
             </button>
           </div>
         </div>
