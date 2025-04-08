@@ -45,7 +45,12 @@ const SignatureModal: React.FC<SignatureModalProps> = ({
               onChange={(e) => setSignatureText(e.target.value)}
               placeholder="Type your signature here"
               className={`w-full text-black text-2xl p-2 border-b-2 border-benext-gray-300 focus:outline-none focus:border-benext-orange bg-transparent`}
-              style={{ fontFamily: SIGNATURE_FONT }}
+              style={{ 
+                fontFamily: SIGNATURE_FONT, 
+                fontStyle: 'italic',
+                fontWeight: 500,
+                letterSpacing: '1px'
+              }}
             />
           </div>
           <div className="flex justify-between space-x-3">

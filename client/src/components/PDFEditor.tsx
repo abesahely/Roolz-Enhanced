@@ -225,6 +225,7 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       fontSize: 28,
       fontFamily: SIGNATURE_FONT,
       fontWeight: 'bold',
+      fontStyle: 'italic', // Add italic styling to ensure proper signature look
       fill: '#000000',
       backgroundColor: ANNOTATION_BACKGROUND,
       editable: true,
@@ -238,6 +239,9 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       scaleX: 1,
       scaleY: 1,
       fixedWidth: true,
+      // Ensure the font is properly loaded and applied
+      paintFirst: 'fill',
+      charSpacing: 80, // Add some letter spacing for signature look
     });
     
     canvasRef.current.add(signatureBox);
