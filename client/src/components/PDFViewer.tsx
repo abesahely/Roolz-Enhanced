@@ -33,6 +33,43 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     }
   }, [currentPage, onPageChange]);
 
+  // Effect to handle iOS-specific interactions
+  useEffect(() => {
+    // Function to handle touch interactions for iOS
+    const handleTouchStart = () => {
+      // Add class to body for iOS to prevent background scrolling
+      if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
+        document.body.classList.add('pdf-interaction-active');
+      }
+    };
+    
+    const handleTouchEnd = () => {
+      // Remove class when touch ends
+      if (navigator.userAgent.match(/iPhone|iPad|iPod/i)) {
+        document.body.classList.remove('pdf-interaction-active');
+      }
+    };
+    
+    // Get PDF container
+    const pdfContainer = document.querySelector('.pdf-container');
+    if (pdfContainer) {
+      pdfContainer.addEventListener('touchstart', handleTouchStart);
+      pdfContainer.addEventListener('touchend', handleTouchEnd);
+      pdfContainer.addEventListener('touchcancel', handleTouchEnd);
+    }
+    
+    return () => {
+      // Cleanup
+      if (pdfContainer) {
+        pdfContainer.removeEventListener('touchstart', handleTouchStart);
+        pdfContainer.removeEventListener('touchend', handleTouchEnd);
+        pdfContainer.removeEventListener('touchcancel', handleTouchEnd);
+      }
+      // Make sure we remove the class when component unmounts
+      document.body.classList.remove('pdf-interaction-active');
+    };
+  }, []);
+  
   // Effect to load PDF
   useEffect(() => {
     if (!file) return;
@@ -278,6 +315,27 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     }
   };
 
+  // Function to handle touch events and improve touch responsiveness
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // Prevent default browser behavior only if we have multiple touch points (pinch zoom)
+    if (e.touches.length > 1) {
+      e.preventDefault();
+    }
+  };
+  
+  // Function to help with scroll momentum on iOS
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    // Get the container
+    const container = e.currentTarget as HTMLDivElement;
+    
+    // Simple momentum scroll simulation - calculate velocity based on touch movement
+    if (e.changedTouches.length === 1) {
+      // We don't need to implement complex physics here as browser will handle most
+      // Just ensure the event propagates correctly for momentum scrolling
+      e.stopPropagation();
+    }
+  };
+
   return (
     <div className="flex-grow bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 shadow-lg">
       <div className="flex justify-between items-center mb-4">
@@ -314,8 +372,24 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
       {/* PDF Viewer Area */}
       <div className="relative bg-benext-gray-100 rounded-lg overflow-hidden" style={{ height: "70vh" }}>
         {/* PDF Render Canvas */}
-        <div className="w-full h-full overflow-auto pdf-container" style={{ maxHeight: "calc(70vh - 50px)" }}>
-          <div className="pdf-wrapper relative min-h-full" id="pdf-wrapper" style={{ margin: '0 auto' }}>
+        <div 
+          className="w-full h-full overflow-auto pdf-container" 
+          style={{ 
+            maxHeight: "calc(70vh - 50px)",
+            WebkitOverflowScrolling: "touch", // Smoother scrolling on iOS
+            overscrollBehavior: "contain", // Prevent scroll chain with parent elements
+          }}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          <div 
+            className="pdf-wrapper relative min-h-full" 
+            id="pdf-wrapper" 
+            style={{ 
+              margin: '0 auto',
+              touchAction: "pan-y", // Explicit touch action for mobile
+            }}
+          >
             <canvas ref={canvasRef} className="pdf-canvas" style={{ position: 'relative', zIndex: 1 }} />
             {/* Annotation canvas will be placed here by PDFEditor */}
           </div>
