@@ -8,15 +8,32 @@ interface PDFViewerProps {
   onClose: () => void;
   onCanvasReady?: (canvas: HTMLCanvasElement) => void;
   onSaveWithAnnotations?: () => void;
+  initialPage?: number;
+  onPageChange?: (pageNumber: number) => void;
 }
 
-const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onSaveWithAnnotations }) => {
+const PDFViewer: React.FC<PDFViewerProps> = ({ 
+  file, 
+  onClose, 
+  onCanvasReady, 
+  onSaveWithAnnotations,
+  initialPage = 1,
+  onPageChange
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pdfDoc, setPdfDoc] = useState<PDFDocumentProxy | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialPage);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1.0);
 
+  // Effect to handle page changes
+  useEffect(() => {
+    if (onPageChange) {
+      onPageChange(currentPage);
+    }
+  }, [currentPage, onPageChange]);
+
+  // Effect to load PDF
   useEffect(() => {
     if (!file) return;
 
@@ -33,8 +50,16 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
         setPdfDoc(pdfDoc);
         setTotalPages(pdfDoc.numPages);
         
-        // Render the first page
-        await renderPage(pdfDoc, 1);
+        // Render the initial page (which might be different from 1)
+        const pageToRender = initialPage > 0 && initialPage <= pdfDoc.numPages 
+          ? initialPage 
+          : 1;
+        
+        // Set current page state to the initial page
+        setCurrentPage(pageToRender);
+        
+        // Render the page
+        await renderPage(pdfDoc, pageToRender);
         
         // Notify parent component that canvas is ready
         if (onCanvasReady && canvasRef.current) {
@@ -47,6 +72,21 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
 
     loadPDF();
   }, [file, onCanvasReady]);
+  
+  // Effect to handle initialPage changes
+  useEffect(() => {
+    if (!pdfDoc) return;
+    
+    const goToInitialPage = async () => {
+      // Only navigate if initialPage is valid and different from current page
+      if (initialPage > 0 && initialPage <= totalPages && initialPage !== currentPage) {
+        setCurrentPage(initialPage);
+        await renderPage(pdfDoc, initialPage);
+      }
+    };
+    
+    goToInitialPage();
+  }, [initialPage, pdfDoc, totalPages]);
 
   const renderPage = async (
     pdf: PDFDocumentProxy,
@@ -142,14 +182,16 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
 
   const prevPage = async () => {
     if (!pdfDoc || currentPage <= 1) return;
-    setCurrentPage(currentPage - 1);
-    await renderPage(pdfDoc, currentPage - 1);
+    const newPage = currentPage - 1;
+    setCurrentPage(newPage);
+    await renderPage(pdfDoc, newPage);
   };
 
   const nextPage = async () => {
     if (!pdfDoc || currentPage >= totalPages) return;
-    setCurrentPage(currentPage + 1);
-    await renderPage(pdfDoc, currentPage + 1);
+    const newPage = currentPage + 1;
+    setCurrentPage(newPage);
+    await renderPage(pdfDoc, newPage);
   };
 
   const changeZoom = async (newScale: number) => {

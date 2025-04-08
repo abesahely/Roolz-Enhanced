@@ -27,6 +27,7 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
   const canvasRef = useRef<fabric.Canvas | null>(null);
   const [fabricInitialized, setFabricInitialized] = useState(false);
   const pdfCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Initialize fabric canvas when the PDF canvas is ready
   const handleCanvasReady = (canvas: HTMLCanvasElement) => {
@@ -581,6 +582,8 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
           onClose={onClose} 
           onCanvasReady={handleCanvasReady}
           onSaveWithAnnotations={saveAnnotatedPDF}
+          initialPage={currentPage}
+          onPageChange={(pageNumber) => setCurrentPage(pageNumber)}
         />
         
         {/* Annotation layer is created dynamically */}
