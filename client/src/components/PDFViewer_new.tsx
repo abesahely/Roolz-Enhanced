@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { pdfjsLib } from "../pdfjs-worker-setup";
 import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { saveAs } from 'file-saver';
+import { BRAND_COLORS } from "@/lib/constants";
 
 interface PDFViewerProps {
   file: File | null;
@@ -29,15 +30,13 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
   const [autoScale, setAutoScale] = useState(true);
   const [originalPdfWidth, setOriginalPdfWidth] = useState(0);
 
-  // Effect to handle page changes
+  // Notify parent component when page changes
   useEffect(() => {
     if (onPageChange) {
       onPageChange(currentPage);
     }
   }, [currentPage, onPageChange]);
 
-
-  
   // Calculate optimal scale based on container size
   const calculateOptimalScale = useCallback((pdfWidth: number) => {
     if (!containerRef.current || !pdfWidth) return 1;
@@ -91,7 +90,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     // Clean up
     return () => {
       window.removeEventListener('resize', handleResize);
-      // Clear any pending timeout
       if (resizeTimeout) {
         clearTimeout(resizeTimeout);
       }
@@ -165,7 +163,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     };
     
     goToInitialPage();
-  }, [initialPage, pdfDoc, totalPages]);
+  }, [initialPage, pdfDoc, totalPages, currentPage]);
 
   const renderPage = async (
     pdf: PDFDocumentProxy,
@@ -332,8 +330,8 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     notification.style.bottom = '20px';
     notification.style.left = '50%';
     notification.style.transform = 'translateX(-50%)';
-    notification.style.backgroundColor = '#0A1E45';
-    notification.style.color = 'white';
+    notification.style.backgroundColor = BRAND_COLORS.BLUE;
+    notification.style.color = BRAND_COLORS.WHITE;
     notification.style.padding = '12px 20px';
     notification.style.borderRadius = '4px';
     notification.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
@@ -345,7 +343,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     // Add download icon
     const icon = document.createElement('i');
     icon.className = 'fas fa-file-download';
-    icon.style.color = '#F4871F';
+    icon.style.color = BRAND_COLORS.ORANGE;
     notification.appendChild(icon);
     
     // Add text message
@@ -382,8 +380,6 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
       // Main approach with download link should still work
     }
   };
-
-
 
   return (
     <div className="flex-grow bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 shadow-lg">
