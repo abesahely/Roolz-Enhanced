@@ -126,54 +126,5 @@
     padding: 8px 16px;
   }
   
-  /* Mobile and iOS scrolling improvements */
-  @media (max-width: 768px) {
-    .pdf-container {
-      -webkit-overflow-scrolling: touch !important;
-      overflow-scrolling: touch !important;
-      touch-action: manipulation !important;
-      scrollbar-width: none !important; /* Hide scrollbars on Firefox */
-    }
-    
-    .pdf-container::-webkit-scrollbar {
-      width: 3px !important; /* Thinner scrollbars on mobile */
-      height: 3px !important;
-    }
-    
-    /* Make PDF controls more touch-friendly */
-    .pdf-controls button,
-    .pdf-controls select {
-      min-height: 40px !important; /* Apple's recommended minimum touch target size */
-      min-width: 40px !important;
-      padding: 8px !important;
-    }
-    
-    /* Make UI elements larger on mobile for better touch targets */
-    .annotation-tools button {
-      padding: 12px 8px !important;
-      font-size: 1.1rem !important;
-    }
-  }
-  
-  /* iOS-specific styles */
-  @supports (-webkit-touch-callout: none) {
-    .pdf-container {
-      -webkit-overscroll-behavior: none !important;
-      overscroll-behavior: none !important;
-      touch-action: pan-y pinch-zoom !important;
-    }
-    
-    /* Prevent body scrolling when interacting with PDF */
-    body.pdf-interaction-active {
-      overflow: hidden !important;
-      position: fixed !important;
-      width: 100% !important;
-      height: 100% !important;
-    }
-    
-    /* Ensure PDF wrapper has proper height on iOS */
-    .pdf-wrapper {
-      min-height: 100% !important;
-    }
-  }
+
 }
