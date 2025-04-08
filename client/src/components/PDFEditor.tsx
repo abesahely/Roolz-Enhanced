@@ -393,44 +393,94 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       });
       
       // Serialize the PDFDocument to bytes
+      console.log("Serializing PDF with annotations...");
       const pdfBytes = await pdfDoc.save();
       
-      // Create a blob and download
+      // Create a blob with the PDF data
+      console.log("Creating blob for annotated PDF...");
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
       
       // Generate a filename with 'annotated-' prefix
-      const originalName = file.name;
-      const annotatedName = originalName.replace('.pdf', '-annotated.pdf');
-      
-      // Check if we're on iOS
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-      
-      if (isIOS) {
-        // On iOS, opening in a new tab often works better than download attribute
-        window.open(url, '_blank');
-        
-        // We still need to revoke the URL, but after a delay to ensure the tab has opened
-        setTimeout(() => {
-          URL.revokeObjectURL(url);
-        }, 1000);
-        
-        return;
+      const originalName = file.name || "document.pdf";
+      let annotatedName = originalName.replace(/\.pdf$/i, '-annotated.pdf');
+      if (!annotatedName.endsWith('.pdf')) {
+        annotatedName += '.pdf'; // Ensure it has the PDF extension
       }
       
-      // Create download link for non-iOS devices
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = annotatedName;
-      a.style.display = 'none'; // Hide the element
-      document.body.appendChild(a);
-      a.click();
+      console.log("Preparing to download annotated PDF:", annotatedName);
       
-      // Clean up
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 100);
+      try {
+        // Create a download URL
+        const url = URL.createObjectURL(blob);
+        console.log("Blob URL created for annotated PDF");
+        
+        // Determine if we're on mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+          // For mobile browsers, especially iOS, we'll try opening in a new tab
+          console.log("Mobile browser detected, opening annotated PDF in new tab");
+          window.open(url, '_blank');
+          
+          // We need to keep the URL around longer on mobile
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+            console.log("Revoked URL after mobile view");
+          }, 5000);
+          return;
+        }
+        
+        // For desktop browsers, use the download attribute
+        console.log("Desktop browser detected, using download attribute for annotated PDF");
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = annotatedName;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        
+        console.log("Triggering download for annotated PDF...");
+        a.click();
+        
+        // Clean up, but give browser time to start the download
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          console.log("Annotated PDF download cleanup completed");
+        }, 1000);
+      } catch (downloadError) {
+        console.error("Error in download process:", downloadError);
+        
+        // Fallback for browsers where the above method fails
+        try {
+          console.log("Attempting fallback download method for annotated PDF");
+          // Create an iframe to trick browsers that block downloads
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          document.body.appendChild(iframe);
+          
+          const iframeDoc = iframe.contentWindow!.document;
+          const downloadLink = iframeDoc.createElement('a');
+          
+          // Create a new blob URL in this context
+          const fallbackUrl = URL.createObjectURL(blob);
+          downloadLink.href = fallbackUrl;
+          downloadLink.download = annotatedName;
+          iframeDoc.body.appendChild(downloadLink);
+          downloadLink.click();
+          
+          // Clean up after delay
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+            URL.revokeObjectURL(fallbackUrl);
+            console.log("Fallback annotated PDF download cleanup completed");
+          }, 1000);
+        } catch (fallbackError) {
+          console.error("Even fallback download failed for annotated PDF:", fallbackError);
+          
+          // Last resort: simply open in a new window/tab
+          window.open(URL.createObjectURL(blob), '_blank');
+        }
+      }
       
       console.log("PDF saved with annotations!");
     } catch (error) {

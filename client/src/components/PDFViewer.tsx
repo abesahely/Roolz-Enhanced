@@ -102,45 +102,88 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (file) {
       try {
-        // Create a URL for the file
-        const url = URL.createObjectURL(file);
+        console.log("Starting download process for original PDF...");
         
-        // Check if we're on iOS
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        // Create a blob from the file directly
+        const fileData = await file.arrayBuffer();
+        const blob = new Blob([fileData], { type: 'application/pdf' });
         
-        if (isIOS) {
-          // On iOS, opening in a new tab often works better than download attribute
+        // Create blob URL
+        const url = URL.createObjectURL(blob);
+        console.log("Created blob URL for download");
+        
+        // Create filename - use original or default
+        const fileName = file.name || "document.pdf";
+        
+        // Determine if we're on mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        if (isMobile) {
+          // For mobile browsers, especially iOS, we'll try opening in a new tab
+          console.log("Mobile browser detected, opening in new tab");
           window.open(url, '_blank');
           
-          // We still need to revoke the URL, but after a delay to ensure the tab has opened
+          // We need to keep the URL around longer on mobile
           setTimeout(() => {
             URL.revokeObjectURL(url);
-          }, 1000);
-          
+            console.log("Revoked URL after mobile view");
+          }, 5000);
           return;
         }
         
-        // For all other devices, use standard download approach
+        // For desktop browsers, use the download attribute
+        console.log("Desktop browser detected, using download attribute");
         const a = document.createElement("a");
         a.href = url;
-        a.download = file.name;
-        a.style.display = 'none'; // Hide the element
+        a.download = fileName;
+        a.style.display = 'none';
         document.body.appendChild(a);
+        
+        console.log("Triggering download...");
         a.click();
         
         // Clean up
+        // Give browser time to process the download
         setTimeout(() => {
           document.body.removeChild(a);
           URL.revokeObjectURL(url);
-        }, 100);
-        
-        console.log("Download initiated for:", file.name);
+          console.log("Download cleanup completed");
+        }, 1000);
       } catch (error) {
         console.error("Error downloading file:", error);
+        
+        // Fallback for browsers where the above method fails
+        try {
+          console.log("Attempting fallback download method");
+          // Create an iframe to trick browsers that block downloads
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          document.body.appendChild(iframe);
+          
+          const iframeDoc = iframe.contentWindow!.document;
+          const downloadLink = iframeDoc.createElement('a');
+          downloadLink.href = URL.createObjectURL(file);
+          downloadLink.download = file.name;
+          iframeDoc.body.appendChild(downloadLink);
+          downloadLink.click();
+          
+          // Clean up after delay
+          setTimeout(() => {
+            document.body.removeChild(iframe);
+            console.log("Fallback download cleanup completed");
+          }, 1000);
+        } catch (fallbackError) {
+          console.error("Even fallback download failed:", fallbackError);
+          
+          // Last resort: simply open in a new window/tab
+          window.open(URL.createObjectURL(file), '_blank');
+        }
       }
+    } else {
+      console.error("No file available to download");
     }
   };
 
@@ -148,25 +191,27 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
     <div className="flex-grow bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 shadow-lg">
       <div className="flex justify-between items-center mb-4">
         <h2 className="font-bold text-xl truncate">{file?.name || "Document.pdf"}</h2>
-        <div className="flex space-x-2">
+        <div className="flex space-x-3">
           <button
-            className="btn-teal p-2 rounded"
+            className="btn-teal px-3 py-2 rounded flex items-center shadow-md hover:shadow-lg transition-shadow"
             title="Download Original"
             onClick={handleDownload}
           >
-            <i className="fas fa-download"></i>
+            <i className="fas fa-download mr-2"></i>
+            <span className="hidden sm:inline">Download</span>
           </button>
           {onSaveWithAnnotations && (
             <button
-              className="btn-orange p-2 rounded"
+              className="btn-orange px-3 py-2 rounded flex items-center shadow-md hover:shadow-lg transition-shadow"
               title="Save with Annotations"
               onClick={onSaveWithAnnotations}
             >
-              <i className="fas fa-file-signature"></i>
+              <i className="fas fa-file-signature mr-2"></i>
+              <span className="hidden sm:inline">Save Annotated</span>
             </button>
           )}
           <button
-            className="bg-benext-gray-600 hover:bg-benext-gray-500 text-white p-2 rounded"
+            className="bg-benext-gray-600 hover:bg-benext-gray-500 text-white px-3 py-2 rounded shadow-md hover:shadow-lg transition-shadow"
             title="Close"
             onClick={onClose}
           >
