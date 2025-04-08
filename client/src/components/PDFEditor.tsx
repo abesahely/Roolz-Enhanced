@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { fabric } from "fabric";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { saveAs } from 'file-saver';
-import PDFViewer from "@/components/PDFViewer_new";
+import PDFViewer from "@/components/PDFViewer";
 import AnnotationTools from "@/components/AnnotationTools";
 import SignatureModal from "@/components/SignatureModal";
 import CheckboxTool from "@/components/CheckboxTool";
