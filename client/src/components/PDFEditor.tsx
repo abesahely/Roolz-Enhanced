@@ -175,6 +175,31 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     console.log("Annotation canvas initialized with interactive settings");
   };
 
+  // Helper function to get visible area coordinates
+  const getVisibleArea = () => {
+    // Get the PDF container
+    const pdfContainer = document.querySelector('.pdf-container');
+    if (!pdfContainer) {
+      return { left: 100, top: 100 }; // Default fallback
+    }
+    
+    // Get the scroll position
+    const scrollTop = pdfContainer.scrollTop;
+    const scrollLeft = pdfContainer.scrollLeft;
+    
+    // Get the center of the visible area
+    const visibleWidth = pdfContainer.clientWidth;
+    const visibleHeight = pdfContainer.clientHeight;
+    
+    // Calculate center position (in scroll coordinates)
+    const centerX = scrollLeft + (visibleWidth / 2);
+    const centerY = scrollTop + (visibleHeight / 3); // Position in upper third for better visibility
+    
+    console.log(`Visible area calculated: x=${centerX}, y=${centerY}, scroll: (${scrollLeft},${scrollTop}), viewport: ${visibleWidth}x${visibleHeight}`);
+    
+    return { left: centerX - 100, top: centerY };
+  };
+
   const handleAddText = (options: {
     text: string;
     font: string;
@@ -182,10 +207,13 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
   }) => {
     if (!canvasRef.current) return;
     
+    // Get the visible area coordinates
+    const { left, top } = getVisibleArea();
+    
     // Create new textbox with orange background
     const textbox = new fabric.Textbox(options.text, {
-      left: 100,
-      top: 100,
+      left: left,
+      top: top,
       width: 200,
       fontSize: options.fontSize || DEFAULT_FONT_SIZE,
       fontFamily: options.font || DEFAULT_FONT,
@@ -218,10 +246,13 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
   const handleSignatureSave = (signatureText: string) => {
     if (!canvasRef.current) return;
     
+    // Get the visible area coordinates
+    const { left, top } = getVisibleArea();
+    
     // Create new signature textbox with orange background
     const signatureBox = new fabric.Textbox(signatureText, {
-      left: 100,
-      top: 200,
+      left: left,
+      top: top,
       width: 200,
       fontSize: 28,
       fontFamily: SIGNATURE_FONT,
@@ -253,6 +284,9 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
 
   const handleAddCheckbox = () => {
     if (!canvasRef.current) return;
+    
+    // Get the visible area coordinates
+    const { left, top } = getVisibleArea();
     
     // Create a group for the checkbox only (no label)
     const checkboxRect = new fabric.Rect({
@@ -290,8 +324,8 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     });
     
     const group = new fabric.Group([checkboxRect, stateObject, checkmark], {
-      left: 100,
-      top: 150,
+      left: left,
+      top: top,
       selectable: true,
       hasControls: true,
       hasBorders: true,
