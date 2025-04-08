@@ -403,14 +403,34 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       const originalName = file.name;
       const annotatedName = originalName.replace('.pdf', '-annotated.pdf');
       
-      // Create download link
+      // Check if we're on iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      
+      if (isIOS) {
+        // On iOS, opening in a new tab often works better than download attribute
+        window.open(url, '_blank');
+        
+        // We still need to revoke the URL, but after a delay to ensure the tab has opened
+        setTimeout(() => {
+          URL.revokeObjectURL(url);
+        }, 1000);
+        
+        return;
+      }
+      
+      // Create download link for non-iOS devices
       const a = document.createElement('a');
       a.href = url;
       a.download = annotatedName;
+      a.style.display = 'none'; // Hide the element
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 100);
       
       console.log("PDF saved with annotations!");
     } catch (error) {

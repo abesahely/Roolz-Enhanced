@@ -104,15 +104,43 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
 
   const handleDownload = () => {
     if (file) {
-      // This is just the original PDF without annotations
-      const url = URL.createObjectURL(file);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = file.name;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      try {
+        // Create a URL for the file
+        const url = URL.createObjectURL(file);
+        
+        // Check if we're on iOS
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+        
+        if (isIOS) {
+          // On iOS, opening in a new tab often works better than download attribute
+          window.open(url, '_blank');
+          
+          // We still need to revoke the URL, but after a delay to ensure the tab has opened
+          setTimeout(() => {
+            URL.revokeObjectURL(url);
+          }, 1000);
+          
+          return;
+        }
+        
+        // For all other devices, use standard download approach
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = file.name;
+        a.style.display = 'none'; // Hide the element
+        document.body.appendChild(a);
+        a.click();
+        
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 100);
+        
+        console.log("Download initiated for:", file.name);
+      } catch (error) {
+        console.error("Error downloading file:", error);
+      }
     }
   };
 

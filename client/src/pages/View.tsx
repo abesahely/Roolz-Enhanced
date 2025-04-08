@@ -58,9 +58,9 @@ const View: React.FC = () => {
   // Error view
   if (error) {
     return (
-      <div className="min-h-screen bg-benext-blue text-benext-white">
+      <div className="flex flex-col min-h-screen bg-benext-blue text-benext-white">
         <Header />
-        <main className="container mx-auto px-4 py-6">
+        <main className="container mx-auto px-4 py-6 flex-grow">
           <h1 className="text-2xl mb-6">Error</h1>
           <p>{error}</p>
           <button
@@ -78,9 +78,9 @@ const View: React.FC = () => {
   // Loading view
   if (!file) {
     return (
-      <div className="min-h-screen bg-benext-blue text-benext-white">
+      <div className="flex flex-col min-h-screen bg-benext-blue text-benext-white">
         <Header />
-        <main className="container mx-auto px-4 py-6">
+        <main className="container mx-auto px-4 py-6 flex-grow">
           <h1 className="text-2xl mb-6">View Document</h1>
           <p>
             {isFetching ? "Fetching PDF, please wait..." : "Loading PDF..."}
@@ -93,11 +93,11 @@ const View: React.FC = () => {
 
   // PDF Editor view
   return (
-    <div className="min-h-screen bg-benext-blue">
+    <div className="flex flex-col min-h-screen bg-benext-blue">
       <Header />
-      <main className="container mx-auto px-4 py-6">
+      <main className="container mx-auto px-4 py-6 flex-grow">
         <h1 className="text-benext-white text-2xl mb-6">Edit Document</h1>
-        <div className="bg-benext-blue bg-opacity-20 rounded-lg p-2 h-[75vh]">
+        <div className="bg-benext-blue bg-opacity-20 rounded-lg p-2" style={{ minHeight: "500px", height: "calc(100% - 4rem)" }}>
           <PDFEditor file={file} onClose={handleCloseEditor} />
         </div>
       </main>
