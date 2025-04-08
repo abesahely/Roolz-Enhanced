@@ -65,13 +65,14 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
     annotationCanvas.width = width;
     annotationCanvas.height = height;
     
-    // Set explicit inline styles with high specificity
+    // Set explicit inline styles with high specificity for better scrolling behavior
     annotationCanvas.style.cssText = `
       position: absolute !important;
       top: 0 !important;
       left: 0 !important;
       z-index: 100 !important;
       pointer-events: all !important;
+      margin: 0 auto !important;
     `;
     
     // Add it to the PDF wrapper
@@ -418,14 +419,55 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       
       console.log("Preparing to download annotated PDF:", annotatedName);
       
+      // Create a download link element and trigger a direct user interaction
+      // This is more reliable than programmatic downloads across browsers
+      const downloadLink = document.createElement('a');
+      downloadLink.href = URL.createObjectURL(blob);
+      downloadLink.download = annotatedName;
+      
+      // Add to DOM temporarily
+      document.body.appendChild(downloadLink);
+      
+      // Display a notification to guide the user
+      const notification = document.createElement('div');
+      notification.style.position = 'fixed';
+      notification.style.bottom = '20px';
+      notification.style.left = '50%';
+      notification.style.transform = 'translateX(-50%)';
+      notification.style.backgroundColor = '#0A1E45';
+      notification.style.color = 'white';
+      notification.style.padding = '12px 20px';
+      notification.style.borderRadius = '4px';
+      notification.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+      notification.style.zIndex = '9999';
+      notification.textContent = 'Click the "Save PDF" button that appears to download your annotated document';
+      document.body.appendChild(notification);
+      
+      // Show the download notification briefly before triggering click
+      setTimeout(() => {
+        // Simulate a user click on the download link
+        downloadLink.click();
+        
+        // Clean up
+        setTimeout(() => {
+          document.body.removeChild(downloadLink);
+          URL.revokeObjectURL(downloadLink.href);
+          
+          if (document.body.contains(notification)) {
+            document.body.removeChild(notification);
+          }
+        }, 100);
+      }, 500);
+      
+      // Try FileSaver as an additional method
       try {
-        // Use FileSaver.js to directly download the file
-        saveAs(blob, annotatedName);
-        console.log("FileSaver.js initiated download for annotated PDF");
-        return; // Exit function after successful download
+        setTimeout(() => {
+          saveAs(blob, annotatedName);
+          console.log("FileSaver.js initiated download for annotated PDF");
+        }, 1000);
       } catch (error) {
         console.error("Error with FileSaver download:", error);
-        // If FileSaver failed, continue with fallback approach
+        // Continue with the existing download link approach
       }
       
       // Fallback: Create a download dialog for manual interaction

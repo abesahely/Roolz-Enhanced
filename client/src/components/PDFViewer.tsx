@@ -167,62 +167,72 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
     
     console.log("Starting download process for original PDF...");
     
+    // Create a blob from the file for consistent behavior
+    const pdfBlob = new Blob([await file.arrayBuffer()], { type: 'application/pdf' });
+    const filename = file.name || "document.pdf";
+    
+    // Create a download link element (similar to SimplePDF approach)
+    const downloadLink = document.createElement('a');
+    downloadLink.href = URL.createObjectURL(pdfBlob);
+    downloadLink.download = filename;
+    
+    // Add to DOM temporarily
+    document.body.appendChild(downloadLink);
+    
+    // Display a notification to guide the user
+    const notification = document.createElement('div');
+    notification.style.position = 'fixed';
+    notification.style.bottom = '20px';
+    notification.style.left = '50%';
+    notification.style.transform = 'translateX(-50%)';
+    notification.style.backgroundColor = '#0A1E45';
+    notification.style.color = 'white';
+    notification.style.padding = '12px 20px';
+    notification.style.borderRadius = '4px';
+    notification.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+    notification.style.zIndex = '9999';
+    notification.style.display = 'flex';
+    notification.style.alignItems = 'center';
+    notification.style.gap = '10px';
+    
+    // Add download icon
+    const icon = document.createElement('i');
+    icon.className = 'fas fa-file-download';
+    icon.style.color = '#F4871F';
+    notification.appendChild(icon);
+    
+    // Add text message
+    const message = document.createElement('span');
+    message.textContent = 'Click the "Save PDF" button to download';
+    notification.appendChild(message);
+    
+    document.body.appendChild(notification);
+    
+    // Show the download notification briefly before triggering click
+    setTimeout(() => {
+      // Simulate a user click on the download link
+      downloadLink.click();
+      
+      // Clean up
+      setTimeout(() => {
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(downloadLink.href);
+        
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 100);
+    }, 500);
+    
+    // Try FileSaver as a backup approach
     try {
-      // Use FileSaver.js to directly download the file
-      // This is a more reliable approach that works across browsers
-      saveAs(file, file.name || "document.pdf");
-      console.log("FileSaver.js initiated download");
+      setTimeout(() => {
+        saveAs(pdfBlob, filename);
+        console.log("FileSaver.js initiated download as backup");
+      }, 1000);
     } catch (error) {
       console.error("Error with FileSaver download:", error);
-      
-      // Fallback approach if FileSaver fails
-      try {
-        const pdfBlob = new Blob([await file.arrayBuffer()], { type: 'application/pdf' });
-        const downloadUrl = URL.createObjectURL(pdfBlob);
-        
-        // Create a status message to confirm the download action
-        const downloadStatus = document.createElement('div');
-        downloadStatus.style.position = 'fixed';
-        downloadStatus.style.bottom = '20px';
-        downloadStatus.style.left = '50%';
-        downloadStatus.style.transform = 'translateX(-50%)';
-        downloadStatus.style.backgroundColor = '#0A1E45';
-        downloadStatus.style.color = 'white';
-        downloadStatus.style.padding = '10px 20px';
-        downloadStatus.style.borderRadius = '4px';
-        downloadStatus.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
-        downloadStatus.style.zIndex = '10000';
-        downloadStatus.style.display = 'flex';
-        downloadStatus.style.alignItems = 'center';
-        downloadStatus.style.gap = '10px';
-        
-        // Add download icon
-        const icon = document.createElement('i');
-        icon.className = 'fas fa-file-download';
-        icon.style.color = '#F4871F';
-        downloadStatus.appendChild(icon);
-        
-        // Add text message
-        const message = document.createElement('span');
-        message.textContent = 'Opening PDF for download...';
-        downloadStatus.appendChild(message);
-        
-        document.body.appendChild(downloadStatus);
-        
-        // Open the PDF in a new tab/window for the user to download
-        window.open(downloadUrl, '_blank');
-        
-        // Clean up
-        setTimeout(() => {
-          if (document.body.contains(downloadStatus)) {
-            document.body.removeChild(downloadStatus);
-          }
-          URL.revokeObjectURL(downloadUrl);
-        }, 5000);
-      } catch (fallbackError) {
-        console.error("Even fallback approach failed:", fallbackError);
-        alert("Unable to download PDF. Please try again or use a different browser.");
-      }
+      // Main approach with download link should still work
     }
   };
 
@@ -263,7 +273,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
       <div className="relative bg-benext-gray-100 rounded-lg overflow-hidden" style={{ height: "70vh" }}>
         {/* PDF Render Canvas */}
         <div className="w-full h-full overflow-auto pdf-container" style={{ maxHeight: "calc(70vh - 50px)" }}>
-          <div className="pdf-wrapper relative flex items-center justify-center min-h-full" id="pdf-wrapper">
+          <div className="pdf-wrapper relative min-h-full" id="pdf-wrapper" style={{ margin: '0 auto' }}>
             <canvas ref={canvasRef} className="pdf-canvas" style={{ position: 'relative', zIndex: 1 }} />
             {/* Annotation canvas will be placed here by PDFEditor */}
           </div>
