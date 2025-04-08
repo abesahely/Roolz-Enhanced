@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { pdfjsLib } from "../pdfjs-worker-setup";
 import { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
+import { saveAs } from 'file-saver';
 
 interface PDFViewerProps {
   file: File | null;
@@ -158,7 +159,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (!file) {
       console.error("No file available to download");
       return;
@@ -166,80 +167,63 @@ const PDFViewer: React.FC<PDFViewerProps> = ({ file, onClose, onCanvasReady, onS
     
     console.log("Starting download process for original PDF...");
     
-    // This is a direct approach that works on most browsers including mobile
-    const downloadUrl = URL.createObjectURL(new Blob([file], { type: 'application/pdf' }));
-    
-    // Create a visible button element which the user can directly interact with
-    // This helps on iOS where automatic clicks are often blocked
-    const downloadArea = document.createElement('div');
-    downloadArea.style.position = 'fixed';
-    downloadArea.style.top = '50%';
-    downloadArea.style.left = '50%';
-    downloadArea.style.transform = 'translate(-50%, -50%)';
-    downloadArea.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
-    downloadArea.style.color = 'white';
-    downloadArea.style.padding = '20px';
-    downloadArea.style.borderRadius = '8px';
-    downloadArea.style.zIndex = '10000';
-    downloadArea.style.textAlign = 'center';
-    
-    // Add explanation text
-    const message = document.createElement('p');
-    message.textContent = 'Your PDF is ready. Tap the button below to download or view it.';
-    message.style.marginBottom = '15px';
-    downloadArea.appendChild(message);
-    
-    // Create the download button
-    const downloadButton = document.createElement('a');
-    downloadButton.href = downloadUrl;
-    downloadButton.download = file.name || 'document.pdf';
-    downloadButton.textContent = 'Download PDF';
-    downloadButton.style.display = 'inline-block';
-    downloadButton.style.backgroundColor = '#F4871F';
-    downloadButton.style.color = 'white';
-    downloadButton.style.padding = '10px 15px';
-    downloadButton.style.borderRadius = '4px';
-    downloadButton.style.textDecoration = 'none';
-    downloadButton.style.fontWeight = 'bold';
-    downloadButton.style.cursor = 'pointer';
-    downloadButton.style.marginBottom = '10px';
-    downloadArea.appendChild(downloadButton);
-    
-    // Add a close button
-    const closeButton = document.createElement('button');
-    closeButton.textContent = 'Close';
-    closeButton.style.display = 'block';
-    closeButton.style.backgroundColor = '#666';
-    closeButton.style.color = 'white';
-    closeButton.style.border = 'none';
-    closeButton.style.padding = '8px 15px';
-    closeButton.style.borderRadius = '4px';
-    closeButton.style.margin = '10px auto 0';
-    closeButton.style.cursor = 'pointer';
-    closeButton.onclick = () => {
-      document.body.removeChild(downloadArea);
-      URL.revokeObjectURL(downloadUrl);
-    };
-    downloadArea.appendChild(closeButton);
-    
-    // Add note for iOS users
-    const iOSNote = document.createElement('p');
-    iOSNote.textContent = 'On iOS: If download doesn\'t start, tap and hold the button, then choose "Download Linked File" or "Open in New Tab".';
-    iOSNote.style.fontSize = '12px';
-    iOSNote.style.marginTop = '10px';
-    iOSNote.style.opacity = '0.8';
-    downloadArea.appendChild(iOSNote);
-    
-    // Add to body
-    document.body.appendChild(downloadArea);
-    
-    // Auto-cleanup after 60 seconds if user doesn't close manually
-    setTimeout(() => {
-      if (document.body.contains(downloadArea)) {
-        document.body.removeChild(downloadArea);
-        URL.revokeObjectURL(downloadUrl);
+    try {
+      // Use FileSaver.js to directly download the file
+      // This is a more reliable approach that works across browsers
+      saveAs(file, file.name || "document.pdf");
+      console.log("FileSaver.js initiated download");
+    } catch (error) {
+      console.error("Error with FileSaver download:", error);
+      
+      // Fallback approach if FileSaver fails
+      try {
+        const pdfBlob = new Blob([await file.arrayBuffer()], { type: 'application/pdf' });
+        const downloadUrl = URL.createObjectURL(pdfBlob);
+        
+        // Create a status message to confirm the download action
+        const downloadStatus = document.createElement('div');
+        downloadStatus.style.position = 'fixed';
+        downloadStatus.style.bottom = '20px';
+        downloadStatus.style.left = '50%';
+        downloadStatus.style.transform = 'translateX(-50%)';
+        downloadStatus.style.backgroundColor = '#0A1E45';
+        downloadStatus.style.color = 'white';
+        downloadStatus.style.padding = '10px 20px';
+        downloadStatus.style.borderRadius = '4px';
+        downloadStatus.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+        downloadStatus.style.zIndex = '10000';
+        downloadStatus.style.display = 'flex';
+        downloadStatus.style.alignItems = 'center';
+        downloadStatus.style.gap = '10px';
+        
+        // Add download icon
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-file-download';
+        icon.style.color = '#F4871F';
+        downloadStatus.appendChild(icon);
+        
+        // Add text message
+        const message = document.createElement('span');
+        message.textContent = 'Opening PDF for download...';
+        downloadStatus.appendChild(message);
+        
+        document.body.appendChild(downloadStatus);
+        
+        // Open the PDF in a new tab/window for the user to download
+        window.open(downloadUrl, '_blank');
+        
+        // Clean up
+        setTimeout(() => {
+          if (document.body.contains(downloadStatus)) {
+            document.body.removeChild(downloadStatus);
+          }
+          URL.revokeObjectURL(downloadUrl);
+        }, 5000);
+      } catch (fallbackError) {
+        console.error("Even fallback approach failed:", fallbackError);
+        alert("Unable to download PDF. Please try again or use a different browser.");
       }
-    }, 60000);
+    }
   };
 
   return (

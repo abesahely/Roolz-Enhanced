@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 // @ts-ignore
 import { fabric } from "fabric";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { saveAs } from 'file-saver';
 import PDFViewer from "@/components/PDFViewer";
 import AnnotationTools from "@/components/AnnotationTools";
 import SignatureModal from "@/components/SignatureModal";
@@ -417,7 +418,17 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
       
       console.log("Preparing to download annotated PDF:", annotatedName);
       
-      // Create a download dialog for manual interaction
+      try {
+        // Use FileSaver.js to directly download the file
+        saveAs(blob, annotatedName);
+        console.log("FileSaver.js initiated download for annotated PDF");
+        return; // Exit function after successful download
+      } catch (error) {
+        console.error("Error with FileSaver download:", error);
+        // If FileSaver failed, continue with fallback approach
+      }
+      
+      // Fallback: Create a download dialog for manual interaction
       console.log("Creating download dialog for annotated PDF");
       const downloadUrl = URL.createObjectURL(blob);
       

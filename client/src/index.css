@@ -56,12 +56,36 @@
     display: flex;
     justify-content: center;
     align-items: flex-start;
+    max-height: calc(70vh - 50px);
+    scrollbar-width: thin;
+    scrollbar-color: #F4871F #0A1E45;
+  }
+  
+  /* Scrollbar styles for WebKit browsers */
+  .pdf-container::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  
+  .pdf-container::-webkit-scrollbar-track {
+    background: #0A1E45;
+    border-radius: 4px;
+  }
+  
+  .pdf-container::-webkit-scrollbar-thumb {
+    background: #F4871F;
+    border-radius: 4px;
+  }
+  
+  .pdf-container::-webkit-scrollbar-thumb:hover {
+    background: #f59a43;
   }
   
   .pdf-wrapper {
     position: relative;
     display: inline-block;
     margin: 0 auto;
+    padding: 10px; /* Add padding to ensure there's scroll space around the PDF */
   }
   
   .pdf-canvas {
