@@ -37,21 +37,37 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     }
   }, [currentPage, onPageChange]);
 
-  // Calculate optimal scale based on container size
+  // Calculate optimal scale based on container size - optimized for mobile and desktop
   const calculateOptimalScale = useCallback((pdfWidth: number) => {
     if (!containerRef.current || !pdfWidth) return 1;
     
-    // Get the container width
+    // Get the container dimensions
     const containerWidth = containerRef.current.clientWidth;
-    // Apply a small margin for aesthetics
-    const availableWidth = Math.max(300, containerWidth - 40); // 20px padding on each side, minimum width of 300px
+    const containerHeight = containerRef.current.clientHeight;
     
-    // Calculate optimal scale and round to 2 decimal places
-    // Ensure we only return positive values and stay within meaningful bounds
+    // Detect mobile device
+    const isMobile = window.innerWidth < 768;
+    
+    // Apply a smaller margin on mobile, larger on desktop
+    const margin = isMobile ? 16 : 40;
+    const availableWidth = Math.max(280, containerWidth - margin); // Smaller minimum width for mobile
+    
+    // On very small screens, we want the whole PDF to be visible
+    // This helps with the erratic scrolling issue
+    if (isMobile && containerWidth < 400) {
+      // For mobile portrait, prioritize fitting width while preserving aspect ratio
+      return Math.max(0.3, Math.min(1, availableWidth / pdfWidth));
+    }
+    
+    // Regular scaling calculation
     const calculatedScale = availableWidth / pdfWidth;
-    const optimalScale = Math.max(0.5, Math.min(2, calculatedScale));
     
-    // Round to 2 decimal places for stability
+    // Adjust scale range based on device - allow smaller scale on mobile for complete viewing
+    const minScale = isMobile ? 0.3 : 0.5;
+    const maxScale = isMobile ? 1.5 : 2.0;
+    const optimalScale = Math.max(minScale, Math.min(maxScale, calculatedScale));
+    
+    // Round to 2 decimal places for stability 
     return Math.round(optimalScale * 100) / 100;
   }, []);
 
@@ -150,7 +166,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     loadPDF();
   }, [file, onCanvasReady, autoScale, calculateOptimalScale]);
   
-  // Effect to handle initialPage changes
+  // Effect to handle initialPage changes - run only when initialPage, pdfDoc, or totalPages change
   useEffect(() => {
     if (!pdfDoc) return;
     
@@ -163,7 +179,7 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     };
     
     goToInitialPage();
-  }, [initialPage, pdfDoc, totalPages, currentPage]);
+  }, [initialPage, pdfDoc, totalPages]); // Removed currentPage to prevent infinite loops
 
   const renderPage = async (
     pdf: PDFDocumentProxy,
@@ -173,12 +189,42 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
     if (!canvasRef.current) return;
 
     try {
+      // Catch any errors that might occur during page navigation
+      if (pageNumber < 1 || pageNumber > pdf.numPages) {
+        console.error(`Invalid page number: ${pageNumber}. Range is 1-${pdf.numPages}`);
+        return;
+      }
+
+      // Show a loading indicator for mobile
+      const isMobile = window.innerWidth < 768;
+      let loadingIndicator: HTMLDivElement | null = null;
+      
+      if (isMobile) {
+        // Create a simple loading indicator specifically for mobile
+        loadingIndicator = document.createElement('div');
+        loadingIndicator.className = 'pdf-page-loading';
+        loadingIndicator.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background-color: rgba(0, 0, 0, 0.7);
+          color: white;
+          padding: 10px 20px;
+          border-radius: 4px;
+          z-index: 1000;
+        `;
+        loadingIndicator.textContent = 'Loading page...';
+        document.body.appendChild(loadingIndicator);
+      }
+
       const page: PDFPageProxy = await pdf.getPage(pageNumber);
       const canvas = canvasRef.current;
       const context = canvas.getContext("2d");
       
       if (!context) {
         console.error("Unable to get canvas context");
+        if (loadingIndicator) document.body.removeChild(loadingIndicator);
         return;
       }
 
@@ -204,7 +250,29 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
         viewport: viewport,
       };
 
-      await page.render(renderContext).promise;
+      try {
+        await page.render(renderContext).promise;
+      } catch (renderError) {
+        console.error("Error rendering PDF page:", renderError);
+        
+        // Recover from render error - try with a smaller scale for problematic pages
+        if (currentScale > 0.5) {
+          const fallbackScale = 0.5;
+          const fallbackViewport = page.getViewport({ scale: fallbackScale, rotation: 0 });
+          canvas.height = fallbackViewport.height;
+          canvas.width = fallbackViewport.width;
+          context.clearRect(0, 0, canvas.width, canvas.height);
+          await page.render({
+            canvasContext: context,
+            viewport: fallbackViewport,
+          }).promise;
+        }
+      }
+      
+      // Remove loading indicator if it exists
+      if (loadingIndicator) {
+        document.body.removeChild(loadingIndicator);
+      }
       
       // Resize the annotation canvas if it exists
       const annotationCanvas = document.getElementById('annotation-canvas') as HTMLCanvasElement;
@@ -268,16 +336,42 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
 
   const prevPage = async () => {
     if (!pdfDoc || currentPage <= 1) return;
-    const newPage = currentPage - 1;
-    setCurrentPage(newPage);
-    await renderPage(pdfDoc, newPage);
+    
+    try {
+      // Scroll to top for better mobile experience
+      if (window.innerWidth < 768 && containerRef.current) {
+        containerRef.current.scrollTop = 0;
+      }
+      
+      const newPage = currentPage - 1;
+      setCurrentPage(newPage);
+      
+      // Add a small delay to ensure state updates before rendering (helps on mobile)
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await renderPage(pdfDoc, newPage);
+    } catch (error) {
+      console.error("Error navigating to previous page:", error);
+    }
   };
 
   const nextPage = async () => {
     if (!pdfDoc || currentPage >= totalPages) return;
-    const newPage = currentPage + 1;
-    setCurrentPage(newPage);
-    await renderPage(pdfDoc, newPage);
+    
+    try {
+      // Scroll to top for better mobile experience
+      if (window.innerWidth < 768 && containerRef.current) {
+        containerRef.current.scrollTop = 0;
+      }
+      
+      const newPage = currentPage + 1;
+      setCurrentPage(newPage);
+      
+      // Add a small delay to ensure state updates before rendering (helps on mobile)
+      await new Promise(resolve => setTimeout(resolve, 50));
+      await renderPage(pdfDoc, newPage);
+    } catch (error) {
+      console.error("Error navigating to next page:", error);
+    }
   };
 
   const changeZoom = async (newScale: number) => {
@@ -422,17 +516,31 @@ const PDFViewer: React.FC<PDFViewerProps> = ({
           className="w-full h-full overflow-auto pdf-container" 
           style={{ 
             maxHeight: "calc(70vh - 50px)",
-            WebkitOverflowScrolling: "touch" // Smoother scrolling on iOS
+            WebkitOverflowScrolling: "touch", // Smoother scrolling on iOS
+            touchAction: "pan-y pinch-zoom", // Enable native touch gestures on mobile
+            msOverflowStyle: "none", // IE and Edge
+            scrollbarWidth: "thin" // Firefox
           }}
         >
           <div 
-            className="pdf-wrapper relative min-h-full" 
+            className="pdf-wrapper relative min-h-full flex justify-center" 
             id="pdf-wrapper" 
             style={{ 
-              margin: '0 auto'
+              margin: '0 auto',
+              minWidth: '100%', // Ensure PDF wrapper is at least as wide as container
+              paddingBottom: '20px' // Add padding at bottom for better mobile scrolling
             }}
           >
-            <canvas ref={canvasRef} className="pdf-canvas" style={{ position: 'relative', zIndex: 1 }} />
+            <canvas 
+              ref={canvasRef} 
+              className="pdf-canvas" 
+              style={{ 
+                position: 'relative', 
+                zIndex: 1,
+                touchAction: "pan-y pinch-zoom", // Enable native touch handling
+                maxWidth: '100%' // Ensure the canvas doesn't overflow on small screens
+              }} 
+            />
             {/* Annotation canvas will be placed here by PDFEditor */}
           </div>
         </div>
