@@ -1,13 +1,14 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Document, Page, pdfjs } from 'react-pdf';
+import { Document, Page } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
-import { fabric } from 'fabric';
-import { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
+// @ts-ignore - fabric.js has some issues with TS imports
+import fabric from 'fabric';
+import { PDFDocumentProxy } from 'pdfjs-dist';
 import LoadingState from '../LoadingState';
 import { usePDFContext } from '../../context/PDFContext';
 import { useAnnotationContext } from '../../context/AnnotationContext';
-import { initPdfWorker, pdfjsLib } from '../../utils/pdfWorkerLoader';
+import { initPdfWorker } from '../../utils/pdfWorkerLoader';
 import { BRAND_COLORS } from '@/lib/constants';
 
 // Initialize PDF.js worker
@@ -81,10 +82,11 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
   }, [file, initialPage, goToPage]);
 
   // Handle document loading success
-  const handleDocumentLoadSuccess = useCallback(async (pdf: PDFDocumentProxy) => {
+  const handleDocumentLoadSuccess = useCallback((pdf: { numPages: number }) => {
     console.log(`PDF loaded successfully: ${pdf.numPages} pages`);
     setNumPages(pdf.numPages);
-    setPdfDocument(pdf);
+    // We need to cast here because of type discrepancies between pdfjs-dist and react-pdf
+    setPdfDocument(pdf as unknown as PDFDocumentProxy);
     setLoading(false);
     setError(null);
   }, [setPdfDocument, setLoading, setError]);
@@ -103,16 +105,19 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
   }, []);
 
   // Handle page render success
-  const handlePageRenderSuccess = useCallback((page: PDFPageProxy) => {
-    const viewport = page.getViewport({ scale: 1 });
-    setPageWidth(viewport.width);
-    setPageHeight(viewport.height);
+  const handlePageRenderSuccess = useCallback((page: any) => {
+    // Extract dimensions from the rendered page
+    const pageWidth = page.width / (page.scale || 1);
+    const pageHeight = page.height / (page.scale || 1);
+    
+    setPageWidth(pageWidth);
+    setPageHeight(pageHeight);
     
     // Set up annotation canvas after page is rendered
     if (canvasRef.current && !annotationCanvasRef.current) {
       const fabricCanvas = new fabric.Canvas(canvasRef.current, {
-        width: viewport.width * scale,
-        height: viewport.height * scale,
+        width: page.width,
+        height: page.height,
         backgroundColor: 'transparent',
         selection: true,
         renderOnAddRemove: true,
@@ -168,7 +173,7 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
     return () => {
       window.removeEventListener('resize', handleResize);
     };
-  }, [autoScale, containerRef, pageWidth, pageHeight, scale, setScale]);
+  }, [autoScale, pageWidth, pageHeight, scale, setScale]);
 
   // Clean up annotation canvas on unmount
   useEffect(() => {

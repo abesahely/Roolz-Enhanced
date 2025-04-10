@@ -1,5 +1,5 @@
 import React from 'react';
-import { BRAND_COLORS } from '../../utils/constants';
+import { BRAND_COLORS } from '@/lib/constants';
 
 interface LoadingStateProps {
   message?: string;
