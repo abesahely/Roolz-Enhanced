@@ -62,39 +62,76 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
   // Convert File to URL for React-PDF
   useEffect(() => {
     if (!file) {
+      console.log('No file provided to PDFDocument');
       setFileUrl(null);
       return;
     }
 
-    // Create URL for the file
-    const url = URL.createObjectURL(file);
-    setFileUrl(url);
+    console.log('Creating URL for file:', file.name, file.type, file.size);
+    
+    try {
+      // Create URL for the file
+      const url = URL.createObjectURL(file);
+      console.log('File URL created successfully:', url);
+      setFileUrl(url);
 
-    // Set initial page if provided
-    if (initialPage > 0) {
-      goToPage(initialPage);
+      // Set initial page if provided
+      if (initialPage > 0) {
+        console.log('Setting initial page to:', initialPage);
+        goToPage(initialPage);
+      }
+
+      // Clean up
+      return () => {
+        if (url) {
+          console.log('Cleaning up file URL');
+          URL.revokeObjectURL(url);
+        }
+      };
+    } catch (error) {
+      console.error('Error creating URL for file:', error);
+      setError(new Error(`Failed to create URL for file: ${error.message}`));
+      setLoading(false);
     }
-
-    // Clean up
-    return () => {
-      if (url) URL.revokeObjectURL(url);
-    };
-  }, [file, initialPage, goToPage]);
+  }, [file, initialPage, goToPage, setError, setLoading]);
 
   // Handle document loading success
   const handleDocumentLoadSuccess = useCallback((pdf: { numPages: number }) => {
-    console.log(`PDF loaded successfully: ${pdf.numPages} pages`);
-    setNumPages(pdf.numPages);
-    // We need to cast here because of type discrepancies between pdfjs-dist and react-pdf
-    setPdfDocument(pdf as unknown as PDFDocumentProxy);
-    setLoading(false);
-    setError(null);
+    console.log(`PDF loaded successfully:`, pdf);
+    console.log(`Number of pages: ${pdf.numPages}`);
+    
+    try {
+      setNumPages(pdf.numPages);
+      // We need to cast here because of type discrepancies between pdfjs-dist and react-pdf
+      setPdfDocument(pdf as unknown as PDFDocumentProxy);
+      setLoading(false);
+      setError(null);
+      console.log('PDF document state updated successfully');
+    } catch (err) {
+      console.error('Error updating document state:', err);
+      setError(new Error(`Failed to process PDF document: ${err.message}`));
+      setLoading(false);
+    }
   }, [setPdfDocument, setLoading, setError]);
 
   // Handle document loading error
   const handleDocumentLoadError = useCallback((error: Error) => {
     console.error('Error loading PDF:', error);
-    setError(error);
+    console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
+    
+    // Try to determine if it's a worker issue
+    const isWorkerIssue = error.message.includes('worker') || 
+                           error.message.includes('Worker') ||
+                           error.message.includes('importScripts');
+    
+    if (isWorkerIssue) {
+      console.error('PDF.js worker issue detected. Check worker configuration.');
+      setError(new Error(`PDF.js worker issue: ${error.message}. Try refreshing the page.`));
+    } else {
+      setError(error);
+    }
+    
     setLoading(false);
   }, [setError, setLoading]);
 
