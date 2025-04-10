@@ -3,6 +3,7 @@
  */
 export const BRAND_COLORS = {
   BLUE: '#0A1E45',
+  NAVY: '#0A1E45', // Deep navy blue (same as BLUE for consistency)
   ORANGE: '#F4871F',
   WHITE: '#FFFFFF',
   GRAY: {

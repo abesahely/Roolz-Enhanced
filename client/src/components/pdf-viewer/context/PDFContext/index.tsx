@@ -21,6 +21,8 @@ interface PDFContextActions {
   prevPage: () => void;
   setScale: (scale: number) => void;
   toggleAutoScale: () => void;
+  setLoading: (loading: boolean) => void;
+  setError: (error: Error | null) => void;
 }
 
 interface PDFContextValue extends PDFContextState, PDFContextActions {}
@@ -45,7 +47,7 @@ export const PDFProvider: React.FC<PDFProviderProps> = ({
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1.0);
   const [autoScale, setAutoScale] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(initialFile !== null);
   const [error, setError] = useState<Error | null>(null);
 
   // Update total pages when PDF document changes
@@ -57,9 +59,17 @@ export const PDFProvider: React.FC<PDFProviderProps> = ({
     }
   }, [pdfDocument]);
 
+  // Set loading state when file changes
+  useEffect(() => {
+    if (file) {
+      setLoading(true);
+      setError(null);
+    }
+  }, [file]);
+
   // Page navigation functions
   const goToPage = (pageNumber: number) => {
-    if (pdfDocument && pageNumber >= 1 && pageNumber <= totalPages) {
+    if (pageNumber >= 1) {
       setCurrentPage(pageNumber);
     }
   };
@@ -100,7 +110,9 @@ export const PDFProvider: React.FC<PDFProviderProps> = ({
     nextPage,
     prevPage,
     setScale,
-    toggleAutoScale
+    toggleAutoScale,
+    setLoading,
+    setError
   };
 
   return (
