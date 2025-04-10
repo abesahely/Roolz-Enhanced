@@ -9,6 +9,7 @@ interface ErrorBoundaryProps {
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
+  retryCount: number;
 }
 
 /**
@@ -22,11 +23,15 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     super(props);
     this.state = {
       hasError: false,
-      error: null
+      error: null,
+      retryCount: 0
     };
+    
+    // Bind methods
+    this.handleRetry = this.handleRetry.bind(this);
   }
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
     // Update state so the next render will show the fallback UI
     return {
       hasError: true,
@@ -38,6 +43,21 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     // Log the error to an error reporting service
     console.error('PDF Viewer error:', error);
     console.error('Error info:', errorInfo);
+    
+    // Categorize the error for better user feedback
+    let errorMessage = ERROR_MESSAGES.GENERAL_ERROR;
+    
+    if (error.message.includes('PDF')) {
+      errorMessage = ERROR_MESSAGES.FILE_LOAD_ERROR;
+    } else if (error.message.includes('annotation') || error.message.includes('canvas')) {
+      errorMessage = ERROR_MESSAGES.ANNOTATION_ERROR;
+    }
+    
+    // Update state with the categorized error message
+    this.setState({
+      hasError: true,
+      error: new Error(errorMessage)
+    });
   }
 
   render() {

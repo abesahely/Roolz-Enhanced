@@ -2,7 +2,7 @@ import React from 'react';
 import { PDFProvider } from '../../context/PDFContext';
 import { AnnotationProvider } from '../../context/AnnotationContext';
 import { MobileProvider } from '../../context/MobileContext';
-import PDFErrorBoundary from '../ErrorBoundary';
+import ErrorBoundary from '../ErrorBoundary';
 import PDFDocument from '../PDFDocument';
 import PDFControlBar from '../PDFControlBar';
 import AnnotationLayerContainer from '../../annotations/AnnotationLayerContainer';
@@ -60,7 +60,7 @@ const PDFViewerContainer: React.FC<PDFViewerContainerProps> = ({
   className = ''
 }) => {
   return (
-    <PDFErrorBoundary>
+    <ErrorBoundary>
       <PDFProvider initialFile={file}>
         <MobileProvider>
           <AnnotationProvider>
@@ -80,7 +80,7 @@ const PDFViewerContainer: React.FC<PDFViewerContainerProps> = ({
           </AnnotationProvider>
         </MobileProvider>
       </PDFProvider>
-    </PDFErrorBoundary>
+    </ErrorBoundary>
   );
 };
 
