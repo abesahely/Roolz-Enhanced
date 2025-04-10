@@ -81,19 +81,31 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
         goToPage(initialPage);
       }
 
+      // Add timeout to reset loading state if onLoadSuccess never fires
+      // This is a safety mechanism in case there's an issue with the PDF.js worker
+      const safetyTimeout = setTimeout(() => {
+        if (loading) {
+          console.warn('Safety timeout: PDF loading took too long, resetting loading state');
+          setLoading(false);
+          setError(new Error('PDF loading timed out. There may be an issue with the PDF.js worker.'));
+        }
+      }, 5000);
+
       // Clean up
       return () => {
         if (url) {
           console.log('Cleaning up file URL');
           URL.revokeObjectURL(url);
         }
+        clearTimeout(safetyTimeout);
       };
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('Error creating URL for file:', error);
-      setError(new Error(`Failed to create URL for file: ${error.message}`));
+      setError(new Error(`Failed to create URL for file: ${errorMessage}`));
       setLoading(false);
     }
-  }, [file, initialPage, goToPage, setError, setLoading]);
+  }, [file, initialPage, goToPage, setError, setLoading, loading]);
 
   // Handle document loading success
   const handleDocumentLoadSuccess = useCallback((pdf: { numPages: number }) => {
@@ -107,9 +119,10 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
       setLoading(false);
       setError(null);
       console.log('PDF document state updated successfully');
-    } catch (err) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       console.error('Error updating document state:', err);
-      setError(new Error(`Failed to process PDF document: ${err.message}`));
+      setError(new Error(`Failed to process PDF document: ${errorMessage}`));
       setLoading(false);
     }
   }, [setPdfDocument, setLoading, setError]);
