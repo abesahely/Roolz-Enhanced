@@ -42,6 +42,11 @@ export const PDF_VIEWER = {
   PAGE_GAP: 10, // Gap between pages in px
 };
 
+// Control bar settings
+export const CONTROL_BAR = {
+  HEIGHT: 48, // Height in pixels
+};
+
 // Annotation settings
 export const ANNOTATION = {
   DEFAULT_FONT_SIZE: 16,
@@ -53,17 +58,14 @@ export const ANNOTATION = {
   CHECKBOX_SIZE: 20,
 };
 
-// Error messages
+// Error messages for better user feedback
 export const ERROR_MESSAGES = {
-  FILE_LOAD_ERROR: 'Failed to load PDF file. Please ensure it is a valid PDF document.',
-  GENERAL_ERROR: 'Something went wrong. Please try again.',
-  ANNOTATION_ERROR: 'Failed to add annotation. Please try again.',
-  SAVE_ERROR: 'Failed to save PDF with annotations. Please try again.',
-};
-
-// Control bar settings
-export const CONTROL_BAR = {
-  HEIGHT: 48, // Height in pixels
+  GENERAL_ERROR: "We encountered an issue displaying this PDF. Please try again.",
+  FILE_LOAD_ERROR: "Unable to load the PDF file. The file may be corrupted or not a valid PDF.",
+  ANNOTATION_ERROR: "There was a problem with the annotation tools. Please try reloading the page.",
+  WORKER_ERROR: "PDF viewer worker failed to initialize. Please check your internet connection and try again.",
+  PERMISSION_ERROR: "Cannot access this PDF file. You may not have permission to view it.",
+  SAVE_ERROR: "Failed to save PDF with annotations. Please try again."
 };
 
 // Responsive breakpoints
