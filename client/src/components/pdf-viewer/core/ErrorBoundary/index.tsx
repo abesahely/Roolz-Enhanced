@@ -19,6 +19,9 @@ interface ErrorBoundaryState {
  * a user-friendly error message instead of crashing the entire app.
  */
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Define max retries as a class constant
+  private readonly MAX_RETRIES = 3;
+  
   constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = {
@@ -26,16 +29,14 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       error: null,
       retryCount: 0
     };
-    
-    // Bind methods
-    this.handleRetry = this.handleRetry.bind(this);
   }
 
-  static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     // Update state so the next render will show the fallback UI
     return {
       hasError: true,
-      error
+      error,
+      retryCount: 0
     };
   }
 
@@ -56,14 +57,35 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
     // Update state with the categorized error message
     this.setState({
       hasError: true,
-      error: new Error(errorMessage)
+      error: new Error(errorMessage),
+      retryCount: 0 // Reset retry count on new errors
     });
   }
+  
+  // Use arrow function to avoid binding issues
+  handleRetry = (): void => {
+    const { retryCount } = this.state;
+    
+    if (retryCount < this.MAX_RETRIES) {
+      // Reset error state and increment retry counter
+      this.setState({
+        hasError: false,
+        error: null,
+        retryCount: retryCount + 1
+      });
+      
+      console.log(`Retry attempt ${retryCount + 1} of ${this.MAX_RETRIES}`);
+    } else {
+      console.error('Maximum retry attempts reached');
+      // On max retries reached, just refresh the page
+      window.location.reload();
+    }
+  };
 
   render() {
-    const { hasError, error } = this.state;
+    const { hasError, error, retryCount } = this.state;
     const { children, fallback } = this.props;
-
+    
     if (hasError) {
       // Custom fallback UI
       if (fallback) {
@@ -92,16 +114,39 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
           <p className="text-center mb-4 opacity-80">
             {error?.message || ERROR_MESSAGES.GENERAL_ERROR}
           </p>
-          <button 
-            className="px-4 py-2 rounded-lg transition-colors" 
-            style={{ 
-              backgroundColor: BRAND_COLORS.ORANGE,
-              color: BRAND_COLORS.WHITE
-            }}
-            onClick={() => window.location.reload()}
-          >
-            Reload Page
-          </button>
+          
+          {/* Retry attempt message if we've tried before */}
+          {retryCount > 0 && (
+            <p className="text-sm text-center mb-2 opacity-60">
+              Retry attempt {retryCount} of {this.MAX_RETRIES}
+            </p>
+          )}
+          
+          <div className="flex flex-row space-x-3">
+            {/* Try Again button - uses our retry handler */}
+            <button 
+              className="px-4 py-2 rounded-lg transition-colors" 
+              style={{ 
+                backgroundColor: BRAND_COLORS.ORANGE,
+                color: BRAND_COLORS.WHITE
+              }}
+              onClick={this.handleRetry}
+              disabled={retryCount >= this.MAX_RETRIES}
+            >
+              Try Again
+            </button>
+            
+            {/* Reload Page button - hard reload */}
+            <button 
+              className="px-4 py-2 rounded-lg border border-white border-opacity-30 transition-colors hover:bg-white hover:bg-opacity-10" 
+              style={{ 
+                color: BRAND_COLORS.WHITE
+              }}
+              onClick={() => window.location.reload()}
+            >
+              Reload Page
+            </button>
+          </div>
         </div>
       );
     }

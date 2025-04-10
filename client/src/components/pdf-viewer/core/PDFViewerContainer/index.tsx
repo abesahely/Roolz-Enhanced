@@ -39,6 +39,11 @@ export interface PDFViewerContainerProps {
   onSaveWithAnnotations?: () => void;
   
   /**
+   * Custom error fallback component
+   */
+  errorFallback?: React.ReactNode;
+  
+  /**
    * Additional class names
    */
   className?: string;
@@ -57,10 +62,11 @@ const PDFViewerContainer: React.FC<PDFViewerContainerProps> = ({
   initialPage = 1,
   onPageChange,
   onSaveWithAnnotations,
+  errorFallback,
   className = ''
 }) => {
   return (
-    <ErrorBoundary>
+    <ErrorBoundary fallback={errorFallback}>
       <PDFProvider initialFile={file}>
         <MobileProvider>
           <AnnotationProvider>
