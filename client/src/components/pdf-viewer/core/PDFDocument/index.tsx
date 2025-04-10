@@ -8,11 +8,11 @@ import { PDFDocumentProxy } from 'pdfjs-dist';
 import LoadingState from '../LoadingState';
 import { usePDFContext } from '../../context/PDFContext';
 import { useAnnotationContext } from '../../context/AnnotationContext';
-import { initPdfWorker } from '../../utils/pdfWorkerLoader';
 import { BRAND_COLORS } from '@/lib/constants';
 
-// Initialize PDF.js worker
-initPdfWorker();
+// Set up PDF.js worker manually for react-pdf
+pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+console.log('PDF.js worker source set directly in PDFDocument component:', pdfjs.GlobalWorkerOptions.workerSrc);
 
 interface PDFDocumentProps {
   initialPage?: number;
@@ -86,7 +86,7 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
       const safetyTimeout = setTimeout(() => {
         if (loading) {
           console.warn('Safety timeout: PDF loading took too long, resetting loading state');
-          console.warn('Worker source:', pdfjsLib.GlobalWorkerOptions.workerSrc);
+          console.warn('Worker source:', pdfjs.GlobalWorkerOptions.workerSrc);
           console.warn('File details:', {
             name: file.name,
             type: file.type,
@@ -96,8 +96,11 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
           
           // Try to check worker status
           try {
-            const isWorkerLoaded = !!pdfjsLib.GlobalWorkerOptions.workerPort;
-            console.warn('Worker loaded status:', isWorkerLoaded);
+            // For react-pdf, we use the pdfjs object
+            const workerStatus = pdfjs.GlobalWorkerOptions.workerSrc 
+              ? 'Worker source set correctly' 
+              : 'Worker source not set';
+            console.warn('Worker status:', workerStatus);
           } catch (e) {
             console.error('Error checking worker status:', e);
           }
@@ -290,19 +293,30 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
         onLoadError={handleDocumentLoadError}
         onLoadProgress={handleDocumentLoadProgress}
         loading={<LoadingState />}
-        error={<div className="p-4 text-red-500">Failed to load PDF document</div>}
+        noData={<div className="p-4 text-red-500">No PDF data</div>}
+        error={<div className="p-4 text-red-500">Failed to load PDF document. Please try again with a different file.</div>}
         className="mx-auto"
+        options={{
+          cMapUrl: 'https://unpkg.com/pdfjs-dist@4.8.69/cmaps/',
+          cMapPacked: true,
+          standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@4.8.69/standard_fonts/',
+          disableWorker: false, // Make sure worker is enabled
+          verbosity: 1 // Increase logging level for debugging
+        }}
       >
-        <Page 
-          pageNumber={currentPage}
-          scale={scale}
-          onRenderSuccess={handlePageRenderSuccess}
-          loading={<LoadingState />}
-          className="shadow-lg mx-auto"
-          renderAnnotationLayer={false} // We'll handle annotations ourselves
-          renderTextLayer={true}
-          canvasRef={canvasRef}
-        />
+        {currentPage <= (numPages || 0) && (
+          <Page 
+            key={`page_${currentPage}`}
+            pageNumber={currentPage}
+            scale={scale}
+            onRenderSuccess={handlePageRenderSuccess}
+            loading={<LoadingState />}
+            className="shadow-lg mx-auto"
+            renderAnnotationLayer={false} // We'll handle annotations ourselves
+            renderTextLayer={true}
+            canvasRef={canvasRef}
+          />
+        )}
       </Document>
       
       {numPages && currentPage > numPages && (
