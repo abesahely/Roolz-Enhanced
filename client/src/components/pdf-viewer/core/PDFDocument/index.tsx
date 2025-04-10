@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Document, Page } from 'react-pdf';
+import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
 // @ts-ignore - fabric.js has some issues with TS imports
@@ -86,10 +86,26 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
       const safetyTimeout = setTimeout(() => {
         if (loading) {
           console.warn('Safety timeout: PDF loading took too long, resetting loading state');
+          console.warn('Worker source:', pdfjsLib.GlobalWorkerOptions.workerSrc);
+          console.warn('File details:', {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            url: fileUrl
+          });
+          
+          // Try to check worker status
+          try {
+            const isWorkerLoaded = !!pdfjsLib.GlobalWorkerOptions.workerPort;
+            console.warn('Worker loaded status:', isWorkerLoaded);
+          } catch (e) {
+            console.error('Error checking worker status:', e);
+          }
+          
           setLoading(false);
-          setError(new Error('PDF loading timed out. There may be an issue with the PDF.js worker.'));
+          setError(new Error('PDF loading timed out. There may be an issue with the PDF.js worker. Please try again or use a different PDF file.'));
         }
-      }, 5000);
+      }, 10000); // Increase timeout to 10 seconds
 
       // Clean up
       return () => {
@@ -112,19 +128,23 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
     console.log(`PDF loaded successfully:`, pdf);
     console.log(`Number of pages: ${pdf.numPages}`);
     
-    try {
-      setNumPages(pdf.numPages);
-      // We need to cast here because of type discrepancies between pdfjs-dist and react-pdf
-      setPdfDocument(pdf as unknown as PDFDocumentProxy);
-      setLoading(false);
-      setError(null);
-      console.log('PDF document state updated successfully');
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.error('Error updating document state:', err);
-      setError(new Error(`Failed to process PDF document: ${errorMessage}`));
-      setLoading(false);
-    }
+    // Add a small delay to ensure React state updates properly
+    // This helps avoid React 18 issues with concurrent rendering
+    setTimeout(() => {
+      try {
+        setNumPages(pdf.numPages);
+        // We need to cast here because of type discrepancies between pdfjs-dist and react-pdf
+        setPdfDocument(pdf as unknown as PDFDocumentProxy);
+        setLoading(false);
+        setError(null);
+        console.log('PDF document state updated successfully');
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        console.error('Error updating document state:', err);
+        setError(new Error(`Failed to process PDF document: ${errorMessage}`));
+        setLoading(false);
+      }
+    }, 50); // Small delay helps with React 18 concurrent mode
   }, [setPdfDocument, setLoading, setError]);
 
   // Handle document loading error

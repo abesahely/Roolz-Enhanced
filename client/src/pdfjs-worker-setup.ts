@@ -7,18 +7,23 @@ import * as pdfjsLib from 'pdfjs-dist';
  * This is essential for PDF.js to function correctly.
  */
 
+// For Vite, we need a specific approach
+// Using a CDN URL is the most reliable approach across all environments
 // Check if we're in a browser environment
 if (typeof window !== 'undefined' && 'Worker' in window) {
-  // Get the version from the installed package
-  const pdfJsVersion = pdfjsLib.version || '3.10.111';
-  
-  // Set worker source using CDN
-  // This allows the worker to be loaded without bundling it
-  const workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfJsVersion}/build/pdf.worker.min.js`;
-  console.log(`Setting PDF.js worker source to: ${workerSrc}`);
-  
-  // Set the worker source 
-  pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+  try {
+    // Get the version from the installed package
+    const pdfJsVersion = pdfjsLib.version;
+    
+    // Use versioned CDN - this is the most reliable approach
+    const workerSrc = `https://unpkg.com/pdfjs-dist@${pdfJsVersion}/build/pdf.worker.min.js`;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+    console.log(`PDF.js worker source set to: ${workerSrc}`);
+  } catch (error) {
+    console.error('Error initializing PDF.js worker:', error);
+    // Set to a default version as last resort
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+  }
 } else {
   console.warn('PDF.js worker cannot be initialized: not in browser environment or Worker API not available');
 }
