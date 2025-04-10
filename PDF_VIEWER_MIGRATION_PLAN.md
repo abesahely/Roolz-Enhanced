@@ -133,13 +133,27 @@ This document tracks the migration from our custom PDF viewer implementation to 
 - [ ] Benchmark against current implementation
 - [ ] Fix any identified issues
 
-### Phase 5: Integration and Rollout
+### Phase 5: Integration, Rollout and Cleanup
 - [ ] Replace PDFViewer imports with toggle component
 - [ ] Test integrated solution
 - [ ] Gradually increase feature flag percentage
 - [ ] Monitor for errors
 - [ ] Full rollout
 - [ ] Remove legacy implementation
+
+#### Cleanup Tasks (Post-Migration):
+- [ ] Remove TestPDFViewer page and related UI elements
+  - Delete TestPDFViewer.tsx component
+  - Remove /test-pdf route from App.tsx
+  - Remove test navigation button from Home page
+- [ ] Remove feature flag system
+  - Delete PDFViewerToggle.tsx component
+  - Delete featureFlags.ts utility
+  - Update imports and remove unused references
+- [ ] Complete remaining documentation
+  - Remove migration-specific notes from component docs
+  - Add final usage documentation for the new PDF viewer
+  - Archive this migration plan once completed
 
 ## Technical Decisions & References
 
@@ -272,6 +286,28 @@ pdf-viewer/ (Module directory)
 - Implemented proper memory management through URL object cleanup
 - Created loading, error, and empty states with user-friendly messages
 - Completed Phase 2, Step 2 of the migration plan
+
+## Post-Migration Cleanup Tasks
+After the migration is fully complete and the new implementation has been deployed to production, the following cleanup tasks should be performed:
+
+1. **Remove Testing Components:**
+   - Delete `client/src/pages/TestPDFViewer.tsx`
+   - Remove the test route from `client/src/App.tsx` (the `/test-pdf` route)
+   - Remove the navigation button to the test page from the Home page
+
+2. **Remove Feature Flag System:**
+   - Remove the `PDFViewerToggle.tsx` component
+   - Remove the `featureFlags.ts` utility file
+   - Update any imports that reference these components
+
+3. **Deprecate Legacy Components:**
+   - Mark the old PDFViewer component as deprecated
+   - Eventually remove the legacy PDFViewer implementation
+   - Update documentation to reflect the new implementation
+
+4. **Update Documentation:**
+   - Update component documentation to remove references to the migration process
+   - Remove this migration plan document once all tasks are completed
 
 ## Pull Request Process
 Each PR related to this migration should:
