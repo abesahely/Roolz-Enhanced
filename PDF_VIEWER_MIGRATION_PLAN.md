@@ -108,67 +108,52 @@ This document tracks the migration from our custom PDF viewer implementation to 
    - Tool tips for annotation usage
    - Visual feedback for selected tools
 
-### Phase 2: Core Implementation
-- [x] Implement PDFViewerContainer with error boundary
-- [ ] Implement basic PDFDocument component with React-PDF
-  - [x] Create initial component structure
-  - [ ] Fix PDF.js worker version conflicts
-    - [x] Standardize on a single version of PDF.js (4.8.69)
-    - [ ] Update worker setup to use the SimplePDF.com approach:
-      - [ ] Implement dynamic import for worker module (create separate chunk)
-      - [ ] Configure Vite to bundle worker as separate file
-      - [ ] Create asynchronous worker initialization
-      - [ ] Add proper error handling for worker loading failures
-    - [x] Remove duplicate worker configurations
-    - [x] Add version constants and initialization flags
-  - [ ] Create reliable worker initialization
-    - [x] Develop dedicated worker initialization module
-    - [ ] Update initialization to use direct import approach
-    - [x] Implement safety checks for proper worker setup
-    - [x] Add detailed logging for debugging
-  - [ ] Update container component with proper initialization
-    - [x] Add worker initialization in component lifecycle
-    - [ ] Pass worker explicitly in Document options
-    - [x] Implement version compatibility verification
-    - [x] Add proper error handling for setup failures
-  - [ ] Enhance Document component options
-    - [x] Add font maps and standard font loading options
-    - [ ] Pass worker reference explicitly in options object
-    - [x] Improve error handling for loading issues
-    - [ ] Increase timeout temporarily for testing
-  - [ ] Improve loading and error states
-    - [ ] Develop better loading indicators
-    - [ ] Create more detailed error messages
-    - [ ] Implement proper loading state tracking
-- [ ] Implement page navigation controls
-- [ ] Add zoom functionality
-- [ ] Create mobile-specific optimizations
-- [ ] Implement memory management utilities
-- [x] Add basic error handling
+### Phase 2: PDF.js Pre-built Viewer Implementation
+- [ ] Create base PDFJSViewer component
+  - [ ] Implement iframe-based viewer integration
+  - [ ] Add file loading with blob URL generation
+  - [ ] Handle proper URL cleanup on unmount
+  - [ ] Add basic toolbar and close functionality
+  - [ ] Implement error handling for failed loading
 
-### Phase 3: Annotation Integration
-- [ ] Create AnnotationLayer component
-- [ ] Implement synchronization with PDF pages
-- [ ] Port text annotation functionality
-- [ ] Port signature functionality
-- [ ] Port checkbox functionality
-- [ ] Implement proper position scaling on zoom
+### Phase 3: Customization and Branding
+- [ ] Apply beNext.io branding to viewer
+  - [ ] Create custom CSS for toolbar and controls
+  - [ ] Implement theme with brand colors
+  - [ ] Inject CSS into iframe via postMessage
+- [ ] Implement cross-frame communication
+  - [ ] Add message event listeners
+  - [ ] Create communication protocol
+  - [ ] Handle page change notifications
+  - [ ] Implement error reporting from viewer
 
-### Phase 4: Testing and Optimization
-- [ ] Create test cases for all core functionality
-- [ ] Test across different browsers (Chrome, Firefox, Safari)
-- [ ] Test on mobile devices (iOS, Android)
-- [ ] Implement performance optimizations
-- [ ] Benchmark against current implementation
-- [ ] Fix any identified issues
+### Phase 4: Feature Enhancement
+- [ ] Add external controls if needed
+  - [ ] Implement custom toolbar if needed
+  - [ ] Create page navigation component
+  - [ ] Add download button functionality
+- [ ] Integrate annotation features
+  - [ ] Research PDF.js viewer annotation capabilities
+  - [ ] Implement custom annotation tools if needed
+  - [ ] Add signature capture mechanism
+  - [ ] Create checkbox annotation feature
+- [ ] Optimize mobile experience
+  - [ ] Test and fix issues on mobile devices
+  - [ ] Add mobile-specific styling
+  - [ ] Implement touch gesture handling
 
-### Phase 5: Integration, Rollout and Cleanup
-- [ ] Replace PDFViewer imports with toggle component
-- [ ] Test integrated solution
-- [ ] Gradually increase feature flag percentage
-- [ ] Monitor for errors
-- [ ] Full rollout
-- [ ] Remove legacy implementation
+### Phase 5: Testing and Integration
+- [ ] Comprehensive testing
+  - [ ] Test on different browsers
+  - [ ] Test on mobile devices
+  - [ ] Test with various PDF types and sizes
+- [ ] Update PDFViewerToggle component
+  - [ ] Connect to new implementation
+  - [ ] Configure feature flags
+- [ ] Replace legacy implementations
+  - [ ] Update import references
+  - [ ] Remove deprecated components
+  - [ ] Update documentation
 
 #### Cleanup Tasks (Post-Migration):
 - [ ] Remove TestPDFViewer page and related UI elements
@@ -186,7 +171,7 @@ This document tracks the migration from our custom PDF viewer implementation to 
 
 ## Technical Decisions & References
 
-### Component Structure
+### Previous Component Structure (React-PDF Approach)
 ```
 PDFViewerContainer/ (Error Boundary Wrapper)
 ├── PDFViewer/ (Main Container)
@@ -199,42 +184,27 @@ PDFViewerContainer/ (Error Boundary Wrapper)
 └── ErrorFallback (Graceful degradation component)
 ```
 
-### New Component Structure (Implemented)
+### New Component Structure (PDF.js Pre-built Viewer Approach)
 ```
 pdf-viewer/ (Module directory)
-├── core/ (Core PDF handling components)
-│   ├── PDFViewerContainer/ (Main container component)
-│   ├── PDFDocument/ (PDF rendering component)
-│   ├── PDFControlBar/ (Navigation and controls)
-│   │   ├── NavigationControls/ (Page navigation)
-│   │   ├── ZoomControls/ (Zoom functionality)
-│   │   └── DownloadControls/ (Download and save options)
-│   ├── ErrorBoundary/ (Error handling)
-│   └── LoadingState/ (Loading indicators)
-├── annotations/ (Annotation functionality)
-│   ├── AnnotationLayerContainer/ (Annotation wrapper)
-│   ├── AnnotationCanvas/ (Fabric.js canvas implementation)
-│   ├── AnnotationToolbar/ (Annotation tools)
-│   │   ├── TextTool/ (Text annotation tool)
-│   │   ├── SignatureTool/ (Signature tool)
-│   │   └── CheckboxTool/ (Checkbox tool)
-│   └── AnnotationModals/ (Input modals for annotations)
+├── components/ (Core PDF handling components)
+│   ├── PDFJSViewer/ (Main iframe-based viewer component)
+│   ├── PDFViewerControlBar/ (Custom controls outside iframe)
+│   │   ├── PageNavigator/ (External page navigation)
+│   │   └── AnnotationControls/ (Custom annotation tools)
+│   ├── SignatureCapture/ (Signature capture component)
+│   └── CustomAnnotations/ (Additional annotation tools)
 ├── context/ (React context providers)
-│   ├── PDFContext/ (PDF document state)
-│   ├── AnnotationContext/ (Annotation state)
-│   └── MobileContext/ (Device-specific state)
+│   └── PDFViewerContext/ (PDF state and viewer communication)
 ├── hooks/ (Custom hooks)
-│   ├── usePDFDocument.ts (PDF loading and management)
-│   ├── useAnnotationCanvas.ts (Fabric.js canvas management)
-│   ├── useVisibleArea.ts (Visible area tracking)
-│   ├── useSavePDF.ts (PDF saving with annotations)
-│   └── useZoom.ts (Zoom state management)
+│   ├── usePDFViewerCommunication.ts (iframe messaging)
+│   ├── useBlobUrlManagement.ts (URL creation/cleanup)
+│   └── useAnnotationTools.ts (Custom annotation helpers)
 └── utils/ (Utility functions)
-    ├── constants.ts (Configuration constants)
-    ├── pdfHelpers.ts (PDF manipulation helpers)
-    ├── annotationHelpers.ts (Annotation helpers)
+    ├── constants.ts (Viewer configuration constants)
+    ├── messageHandlers.ts (Cross-frame message processors)
+    ├── cssInjection.ts (Custom CSS injection utilities)
     ├── deviceDetection.ts (Device detection utilities)
-    ├── pdfWorkerLoader.ts (PDF.js worker configuration)
     └── featureFlags.ts (Feature flag toggle mechanism)
 ```
 
@@ -252,106 +222,192 @@ pdf-viewer/ (Module directory)
 4. **Platform Detection**: Apply iOS-specific fixes for Safari
 5. **Loading Indicators**: Provide clear visual feedback for all operations
 
-### SimplePDF.com Worker Implementation Approach - Revised
-After deeper analysis of SimplePDF.com's implementation, we've discovered they use dynamic imports with proper bundling. Here's our revised approach:
+### Strategic Pivot: PDF.js Pre-built Viewer Implementation
 
-1. **Dynamic Worker Import**
-   ```typescript
-   // pdfjs-worker-setup.ts
-   import { pdfjs } from 'react-pdf';
+After facing significant challenges with React-PDF integration in the Replit environment, we're pivoting to a more reliable solution using the PDF.js pre-built viewer. This approach offers several advantages:
+
+1. **Reliability**: The pre-built viewer is extensively tested and works across various environments
+2. **Completeness**: Includes all necessary features like annotations, navigation, and mobile support
+3. **Compatibility**: Confirmed to work in restricted environments like Replit
+4. **Maintenance**: Maintained by Mozilla with regular updates and broad community support
+
+#### New Implementation Approach
+
+The PDF.js pre-built viewer will be integrated through iframes with proper customization for beNext.io branding. This approach requires less code and avoids the worker communication issues we've encountered.
+
+1. **Base Implementation**
+   ```tsx
+   // PDFViewerComponent.tsx
+   interface PDFJSViewerProps {
+     file: File | null;
+     onClose: () => void;
+     initialPage?: number;
+     className?: string;
+   }
    
-   const loadPdfWorker = async () => {
-     try {
-       // Dynamic import creates a separate chunk during build
-       const workerModule = await import('pdfjs-dist/build/pdf.worker.js');
-       return workerModule;
-     } catch (error) {
-       console.error('Failed to load PDF.js worker:', error);
-       throw error;
-     }
-   };
-   
-   export const initializeWorker = async () => {
-     try {
-       const workerModule = await loadPdfWorker();
-       pdfjs.GlobalWorkerOptions.workerSrc = workerModule;
+   const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
+     file,
+     onClose,
+     initialPage = 1,
+     className = ''
+   }) => {
+     const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+     
+     // Generate viewer URL when file changes
+     useEffect(() => {
+       if (!file) return;
        
-       // Set global flags for debugging
-       (window as any).__PDFJS_WORKER_INITIALIZED = true;
-       (window as any).__PDFJS_WORKER_VERSION = '4.8.69';
-       (window as any).__PDFJS_WORKER_METHOD = 'dynamic-import';
+       // Create blob URL for the PDF
+       const blobUrl = URL.createObjectURL(file);
        
-       return true;
-     } catch (error) {
-       console.error('Worker initialization failed:', error);
-       return false;
+       // Construct viewer URL with parameters
+       const baseViewerUrl = 'https://mozilla.github.io/pdf.js/web/viewer.html';
+       const viewerWithParams = `${baseViewerUrl}?file=${encodeURIComponent(blobUrl)}#page=${initialPage}`;
+       
+       setViewerUrl(viewerWithParams);
+       
+       return () => {
+         // Clean up blob URL when component unmounts
+         URL.revokeObjectURL(blobUrl);
+       };
+     }, [file, initialPage]);
+     
+     // Render loading state if URL isn't ready
+     if (!viewerUrl) {
+       return <div className="loading">Loading PDF viewer...</div>;
      }
+     
+     return (
+       <div className={`pdf-viewer-container ${className}`}>
+         <div className="pdf-viewer-toolbar">
+           <button 
+             onClick={onClose}
+             className="close-button"
+           >
+             Close
+           </button>
+         </div>
+         
+         <iframe
+           src={viewerUrl}
+           title="PDF Viewer"
+           className="pdf-viewer-iframe"
+           style={{
+             border: 'none',
+             width: '100%',
+             height: 'calc(100% - 40px)', // Account for toolbar
+           }}
+         />
+       </div>
+     );
    };
    ```
 
-2. **Early Asynchronous Initialization**
-   ```typescript
-   // main.tsx (at top)
-   import { initializeWorker } from './pdfjs-worker-setup';
+2. **Custom CSS for beNext.io Branding**
+   ```css
+   /* Custom CSS for PDF.js viewer (injected through postMessage) */
+   :root {
+     --main-color: #0A1E45;
+     --main-color-hover: #1E3A6C;
+     --secondary-color: #F4871F;
+     --secondary-color-hover: #F6A04C;
+     --text-color: #FFFFFF;
+   }
    
-   // Initialize worker as early as possible
-   initializeWorker().catch(err => {
-     console.error('Failed to initialize PDF.js worker:', err);
-   });
+   #toolbarViewer {
+     background-color: var(--main-color);
+   }
+   
+   .toolbarButton {
+     color: var(--text-color);
+   }
+   
+   .toolbarButton:hover {
+     background-color: var(--main-color-hover);
+   }
+   
+   .toolbarButton.toggled {
+     background-color: var(--secondary-color);
+   }
    ```
 
-3. **Vite Configuration Update for Worker**
-   ```typescript
-   // vite.config.ts
-   export default defineConfig({
-     // Other configuration...
-     build: {
-       // Ensure the worker is properly chunked during build
-       rollupOptions: {
-         output: {
-           manualChunks: {
-             'pdf.worker': ['pdfjs-dist/build/pdf.worker.js']
-           }
-         }
-       }
-     }
-   });
-   ```
-
-4. **Component Initialization with Worker Ready Check**
-   ```typescript
-   // PDFViewerContainer.tsx
+3. **Cross-Frame Communication for Enhanced Control**
+   ```tsx
    useEffect(() => {
-     const checkWorker = async () => {
-       if (!(window as any).__PDFJS_WORKER_INITIALIZED) {
-         try {
-           await initializeWorker();
-           console.log('Worker initialized from component');
-         } catch (error) {
-           setError(new Error('Failed to initialize PDF.js worker'));
-         }
+     // Set up message listener for iframe communication
+     const handleMessage = (event: MessageEvent) => {
+       // Verify origin for security
+       if (event.origin !== 'https://mozilla.github.io') return;
+       
+       const data = event.data;
+       
+       // Handle various messages from the viewer
+       switch (data.type) {
+         case 'pagechange':
+           if (onPageChange) onPageChange(data.pageNumber);
+           break;
+         case 'documentloaded':
+           console.log('PDF loaded successfully');
+           break;
+         case 'error':
+           console.error('PDF viewer error:', data.message);
+           break;
        }
      };
      
-     checkWorker();
-   }, []);
+     window.addEventListener('message', handleMessage);
+     return () => window.removeEventListener('message', handleMessage);
+   }, [onPageChange]);
    ```
 
-5. **Improved Error Handling and Diagnostics**
-   ```typescript
-   // Additional diagnostics in PDFDocument.tsx
-   useEffect(() => {
-     // Log worker status on mount
-     console.log('Worker status:', {
-       initialized: (window as any).__PDFJS_WORKER_INITIALIZED,
-       version: (window as any).__PDFJS_WORKER_VERSION,
-       method: (window as any).__PDFJS_WORKER_METHOD,
-       workerSrc: pdfjs.GlobalWorkerOptions.workerSrc
-     });
-   }, []);
+4. **Local Viewer Implementation (Alternative to CDN)**
+   ```tsx
+   // For better control, we can host the viewer locally
+   const LOCAL_VIEWER_PATH = '/pdf-viewer/web/viewer.html';
+   
+   // Then use it in the component
+   const viewerWithParams = `${LOCAL_VIEWER_PATH}?file=${encodeURIComponent(blobUrl)}#page=${initialPage}`;
    ```
 
-This approach properly bundles the worker file with Vite, making it accessible from the same origin as the main application, avoiding the issues we encountered with direct node_modules references.
+#### Feature Compatibility with our Requirements
+
+The PDF.js pre-built viewer provides all the features we need:
+
+- **PDF Rendering**: High-quality PDF rendering with text selection
+- **Page Navigation**: Complete navigation controls with thumbnails
+- **Zoom & Scaling**: Advanced zoom controls with fit-to-page options
+- **Mobile Support**: Responsive design with touch gestures
+- **Annotations**: Built-in annotation tools
+- **Download**: File download functionality
+- **Search**: Full-text search within PDFs
+- **Accessibility**: Keyboard navigation and screen reader support
+
+#### Implementation Timeline
+
+1. **Phase 1: Base Implementation (2 days)**
+   - Create PDFJSViewer component with iframe integration
+   - Set up file loading mechanism with blob URLs
+   - Add basic styling and close functionality
+
+2. **Phase 2: Customization & Branding (2 days)**
+   - Apply beNext.io styling to the viewer
+   - Add custom controls as needed
+   - Implement cross-frame communication
+
+3. **Phase 3: Feature Enhancement (3 days)**
+   - Add annotation integration if needed
+   - Implement mobile-specific optimizations
+   - Add any custom functionality not in base viewer
+
+4. **Phase 4: Testing & Integration (2 days)**
+   - Comprehensive testing across devices
+   - Integration with main application
+   - Performance optimization
+
+5. **Phase 5: Cleanup (1 day)**
+   - Remove unused React-PDF components
+   - Document new implementation
+   - Update component references
 
 ### Memory Management Strategy
 - Track and clean up pages that are not in view
@@ -360,9 +416,11 @@ This approach properly bundles the worker file with Vite, making it accessible f
 - Use worker threads for heavy processing
 
 ### Links & Resources
-- [React-PDF Documentation](https://react-pdf-viewer.dev/)
 - [PDF.js Documentation](https://mozilla.github.io/pdf.js/)
+- [PDF.js Pre-built Viewer](https://mozilla.github.io/pdf.js/web/viewer.html)
+- [PDF.js Viewer API](https://mozilla.github.io/pdf.js/api/)
 - [Fabric.js Documentation](http://fabricjs.com/)
+- [iframe Communication API](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage)
 
 ## Known Issues in Current Implementation
 - Infinite update loop causing performance issues
@@ -462,6 +520,21 @@ This approach properly bundles the worker file with Vite, making it accessible f
   - Ensure worker is loaded from same origin as application
   - Remove direct references to node_modules paths
 - Re-evaluated SimplePDF.com approach with more accurate understanding
+
+### April 11, 4:00 PM, 2025
+- After multiple implementation attempts, encountered persistent issues with worker initialization in Replit environment
+- Performed root cause analysis to identify environment-specific constraints
+- Researched alternative approaches that would be more reliable in the Replit environment
+- Identified PDF.js pre-built viewer as a robust alternative that avoids worker communication issues
+- Made strategic decision to pivot to PDF.js pre-built viewer approach
+- Developed comprehensive implementation plan for new approach:
+  - Use iframe-based integration of PDF.js viewer
+  - Apply custom CSS for beNext.io branding
+  - Implement cross-frame communication for enhanced control
+  - Utilize URL parameters for viewer configuration
+- Created example implementation of the new approach
+- Updated migration plan to reflect strategic pivot
+- Revised timeline and implementation phases
 
 ## Post-Migration Cleanup Tasks
 After the migration is fully complete and the new implementation has been deployed to production, the following cleanup tasks should be performed:
