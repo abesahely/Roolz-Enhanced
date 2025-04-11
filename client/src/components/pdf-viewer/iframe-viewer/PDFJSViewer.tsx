@@ -55,7 +55,7 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
       
       // Construct viewer URL with parameters - using our self-hosted viewer
       const baseViewerUrl = '/pdf-viewer/web/viewer.html';
-      const viewerWithParams = `${baseViewerUrl}?file=${encodeURIComponent(blobUrl)}#page=${initialPage}`;
+      const viewerWithParams = `${baseViewerUrl}?file=${encodeURIComponent(blobUrl)}&base=${encodeURIComponent(window.location.origin)}#page=${initialPage}`;
       
       setViewerUrl(viewerWithParams);
       setIsLoading(false);
