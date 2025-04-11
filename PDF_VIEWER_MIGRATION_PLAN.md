@@ -110,25 +110,31 @@ This document tracks the migration from our custom PDF viewer implementation to 
 
 ### Phase 2: Core Implementation
 - [x] Implement PDFViewerContainer with error boundary
-- [x] Implement basic PDFDocument component with React-PDF
+- [ ] Implement basic PDFDocument component with React-PDF
   - [x] Create initial component structure
-  - [x] Fix PDF.js worker version conflicts
+  - [ ] Fix PDF.js worker version conflicts
     - [x] Standardize on a single version of PDF.js (4.8.69)
-    - [x] Update worker setup to use correct version
+    - [ ] Update worker setup to use the SimplePDF.com approach:
+      - [ ] Import worker entry point directly (from pdfjs-dist/build/pdf.worker.entry)
+      - [ ] Use imported worker in GlobalWorkerOptions instead of CDN URL
+      - [ ] Ensure early initialization in application lifecycle
     - [x] Remove duplicate worker configurations
     - [x] Add version constants and initialization flags
-  - [x] Create reliable worker initialization
+  - [ ] Create reliable worker initialization
     - [x] Develop dedicated worker initialization module
+    - [ ] Update initialization to use direct import approach
     - [x] Implement safety checks for proper worker setup
     - [x] Add detailed logging for debugging
-  - [x] Update container component with proper initialization
+  - [ ] Update container component with proper initialization
     - [x] Add worker initialization in component lifecycle
+    - [ ] Pass worker explicitly in Document options
     - [x] Implement version compatibility verification
     - [x] Add proper error handling for setup failures
-  - [x] Enhance Document component options
+  - [ ] Enhance Document component options
     - [x] Add font maps and standard font loading options
+    - [ ] Pass worker reference explicitly in options object
     - [x] Improve error handling for loading issues
-    - [x] Create better timeout mechanisms
+    - [ ] Increase timeout temporarily for testing
   - [ ] Improve loading and error states
     - [ ] Develop better loading indicators
     - [ ] Create more detailed error messages
@@ -245,6 +251,53 @@ pdf-viewer/ (Module directory)
 4. **Platform Detection**: Apply iOS-specific fixes for Safari
 5. **Loading Indicators**: Provide clear visual feedback for all operations
 
+### SimplePDF.com Worker Implementation Approach
+Following analysis of SimplePDF.com's implementation, we'll implement their approach:
+
+1. **Direct Worker Import**
+   ```typescript
+   // pdfjs-worker-setup.ts
+   import { pdfjs } from 'react-pdf';
+   import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry';
+   
+   pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+   ```
+
+2. **Early Initialization**
+   ```typescript
+   // main.tsx (at top)
+   import './pdfjs-worker-setup';
+   ```
+
+3. **Pass Worker Explicitly**
+   ```tsx
+   // PDFDocument.tsx
+   <Document
+     options={{
+       worker: pdfjs.GlobalWorkerOptions.workerSrc,
+       // Other options...
+     }}
+   >
+   ```
+
+4. **Verification and Safety Checks**
+   ```typescript
+   // Error handling in PDFDocument
+   useEffect(() => {
+     if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+       setError(new Error('PDF.js worker not initialized properly'));
+     }
+   }, []);
+   ```
+
+5. **Timeout Adjustments**
+   ```typescript
+   // Increase timeout for testing
+   setTimeout(() => { /* timeout logic */ }, 20000);
+   ```
+
+This approach ensures consistent worker availability to both PDF.js directly and through React-PDF's internal usage, avoiding the conflicts we're experiencing with CDN-based approaches.
+
 ### Memory Management Strategy
 - Track and clean up pages that are not in view
 - Implement proper unmount cleanup
@@ -326,7 +379,21 @@ pdf-viewer/ (Module directory)
 - Updated PDFViewerContainer with proper worker initialization cycle
 - Enhanced Document component options with correct font loading paths
 - Added safety measures and robust error handling for worker failures
-- Completed Phase 2, Step 2 of the migration plan with working PDF viewer
+- Attempted to complete Phase 2, Step 2 with CDN-based worker approach
+
+### April 11, Noon, 2025
+- Encountered persistent issues with worker loading using CDN approach
+- Researched Reddit discussions on React-PDF worker issues
+- Analyzed SimplePDF.com implementation for best practices
+- Discovered that React-PDF has internal worker loading mechanisms
+- Identified need to directly import worker entry point instead of using CDN URLs
+- Created detailed plan to follow SimplePDF.com approach:
+  - Import worker entry point directly from pdfjs-dist
+  - Use imported worker in global configuration
+  - Ensure proper bundling of worker code
+  - Pass worker explicitly in Document options
+- Revised migration plan to incorporate direct import approach
+- Ready to implement SimplePDF.com worker loading strategy
 
 ## Post-Migration Cleanup Tasks
 After the migration is fully complete and the new implementation has been deployed to production, the following cleanup tasks should be performed:
