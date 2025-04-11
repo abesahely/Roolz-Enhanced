@@ -53,8 +53,8 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
       // Create blob URL for the PDF
       const blobUrl = URL.createObjectURL(file);
       
-      // Construct viewer URL with parameters
-      const baseViewerUrl = 'https://mozilla.github.io/pdf.js/web/viewer.html';
+      // Construct viewer URL with parameters - using our self-hosted viewer
+      const baseViewerUrl = '/pdf-viewer/web/viewer.html';
       const viewerWithParams = `${baseViewerUrl}?file=${encodeURIComponent(blobUrl)}#page=${initialPage}`;
       
       setViewerUrl(viewerWithParams);
@@ -76,8 +76,8 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
     if (!viewerUrl) return;
     
     const handleMessage = (event: MessageEvent) => {
-      // Verify origin for security
-      if (event.origin !== 'https://mozilla.github.io') return;
+      // Accept messages from our own origin
+      if (event.origin !== window.location.origin) return;
       
       const data = event.data;
       
