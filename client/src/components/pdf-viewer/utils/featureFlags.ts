@@ -24,7 +24,7 @@ interface FeatureFlags {
 
 // Default feature flag values
 const defaultFeatureFlags: FeatureFlags = {
-  useNewPDFViewer: false, // Default to the legacy implementation
+  useNewPDFViewer: true, // Default to the new implementation with our CDN worker fix
   useNewAnnotationTools: false,
   useAnnotationAutoSaving: false,
   usePagePreloading: false,

@@ -1,5 +1,9 @@
 // Initialize PDF.js worker using SimplePDF.com's dynamic import approach
 import { initializeWorker } from "./components/pdf-viewer/utils/pdfWorkerLoader";
+import { resetFeatureFlags } from "./components/pdf-viewer/utils/featureFlags";
+
+// Reset feature flags to use our new implementation with fixed worker
+resetFeatureFlags();
 
 // Start worker initialization immediately
 // This is an async operation but we don't need to wait for it
