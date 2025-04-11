@@ -29,6 +29,22 @@ See https://github.com/adobe-type-tools/cmap-resources
 
 <!-- This snippet is used in production (included from viewer.html) -->
 <link rel="resource" type="application/l10n" href="locale/locale.json">
+<script>
+  // Debug script to help diagnose issues
+  console.log('PDF Viewer initializing...');
+  console.log('URL parameters:', window.location.search);
+  
+  // Report any errors during loading
+  window.addEventListener('error', function(event) {
+    console.error('PDF.js viewer error:', event.message);
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({
+        type: 'error',
+        message: 'Error in PDF viewer: ' + event.message
+      }, '*');
+    }
+  });
+</script>
 <script src="../build/pdf.mjs" type="module"></script>
 
     <link rel="stylesheet" href="viewer.css">

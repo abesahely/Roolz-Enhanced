@@ -96,34 +96,64 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
   useEffect(() => {
     if (!viewerUrl) return;
     
+    debugPDFViewer('Setting up message listener for iframe communication');
+    
     const handleMessage = (event: MessageEvent) => {
+      // Log all received messages for debugging
+      debugPDFViewer('Received message event', {
+        origin: event.origin,
+        expectedOrigin: window.location.origin,
+        data: event.data,
+        source: event.source ? 'Available' : 'Not available'
+      });
+      
       // Accept messages from our own origin
-      if (event.origin !== window.location.origin) return;
+      if (event.origin !== window.location.origin) {
+        debugPDFViewer('Message origin mismatch', {
+          received: event.origin,
+          expected: window.location.origin
+        });
+        return;
+      }
       
       const data = event.data;
       
       // Handle various messages from the viewer
       if (typeof data === 'object' && data !== null) {
+        debugPDFViewer('Processing message data', data);
+        
         switch (data.type) {
           case 'pagechange':
+            debugPDFViewer('Page change event', data.pageNumber);
             if (onPageChange && typeof data.pageNumber === 'number') {
               onPageChange(data.pageNumber);
             }
             break;
           case 'documentloaded':
+            debugPDFViewer('Document loaded successfully');
             console.log('PDF loaded successfully');
             setIsLoading(false);
             break;
           case 'error':
+            debugPDFViewer('PDF viewer error', data.message);
             console.error('PDF viewer error:', data.message);
             setError(data.message || 'Error displaying PDF');
             break;
+          default:
+            debugPDFViewer('Unhandled message type', data.type);
         }
+      } else {
+        debugPDFViewer('Received non-object message data', typeof data);
       }
     };
     
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    debugPDFViewer('Message listener attached');
+    
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      debugPDFViewer('Message listener removed');
+    };
   }, [viewerUrl, onPageChange]);
 
   // Render loading state
@@ -212,11 +242,18 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
       
       <div className="flex-1 relative">
         <iframe
+          ref={iframeRef}
           src={viewerUrl}
           title="PDF Viewer"
           className="pdf-viewer-iframe absolute inset-0 w-full h-full"
           style={{ border: 'none' }}
           sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-popups"
+          onLoad={() => {
+            debugPDFViewer('iframe loaded', {
+              url: viewerUrl,
+              contentWindow: iframeRef.current?.contentWindow ? 'Available' : 'Not available'
+            });
+          }}
         />
       </div>
     </div>
