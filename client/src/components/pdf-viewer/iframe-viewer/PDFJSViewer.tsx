@@ -1,5 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { BRAND_COLORS } from '@/lib/constants';
+
+// Debug logger for PDF viewer issues
+const debugPDFViewer = (message: string, data?: any) => {
+  console.log(`[PDFViewer Debug] ${message}`, data || '');
+};
 
 interface PDFJSViewerProps {
   /**
@@ -44,28 +49,44 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
   const [viewerUrl, setViewerUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Generate viewer URL when file changes
   useEffect(() => {
-    if (!file) return;
+    if (!file) {
+      debugPDFViewer('No file provided');
+      return;
+    }
     
     try {
+      // Log file information for debugging
+      debugPDFViewer('Processing file', {
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        lastModified: new Date(file.lastModified).toISOString()
+      });
+      
       // Create blob URL for the PDF
       const blobUrl = URL.createObjectURL(file);
+      debugPDFViewer('Created blob URL', blobUrl);
       
       // Construct viewer URL with parameters - using our self-hosted viewer
       const baseViewerUrl = '/pdf-viewer/web/viewer.html';
-      const viewerWithParams = `${baseViewerUrl}?file=${encodeURIComponent(blobUrl)}&base=${encodeURIComponent(window.location.origin)}#page=${initialPage}`;
+      const viewerWithParams = `${baseViewerUrl}?file=${encodeURIComponent(blobUrl)}&base=${encodeURIComponent(window.location.origin)}&debug=true#page=${initialPage}`;
       
+      debugPDFViewer('Constructed viewer URL', viewerWithParams);
       setViewerUrl(viewerWithParams);
       setIsLoading(false);
       
       return () => {
         // Clean up blob URL when component unmounts or changes
+        debugPDFViewer('Cleaning up blob URL', blobUrl);
         URL.revokeObjectURL(blobUrl);
       };
     } catch (err) {
       console.error('Error creating blob URL for PDF:', err);
+      debugPDFViewer('Error in URL creation', err);
       setError('Failed to load PDF. Please try again.');
       setIsLoading(false);
     }
