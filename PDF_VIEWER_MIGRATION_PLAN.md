@@ -115,9 +115,10 @@ This document tracks the migration from our custom PDF viewer implementation to 
   - [ ] Fix PDF.js worker version conflicts
     - [x] Standardize on a single version of PDF.js (4.8.69)
     - [ ] Update worker setup to use the SimplePDF.com approach:
-      - [ ] Import worker entry point directly (from pdfjs-dist/build/pdf.worker.entry)
-      - [ ] Use imported worker in GlobalWorkerOptions instead of CDN URL
-      - [ ] Ensure early initialization in application lifecycle
+      - [ ] Implement dynamic import for worker module (create separate chunk)
+      - [ ] Configure Vite to bundle worker as separate file
+      - [ ] Create asynchronous worker initialization
+      - [ ] Add proper error handling for worker loading failures
     - [x] Remove duplicate worker configurations
     - [x] Add version constants and initialization flags
   - [ ] Create reliable worker initialization
@@ -251,52 +252,106 @@ pdf-viewer/ (Module directory)
 4. **Platform Detection**: Apply iOS-specific fixes for Safari
 5. **Loading Indicators**: Provide clear visual feedback for all operations
 
-### SimplePDF.com Worker Implementation Approach
-Following analysis of SimplePDF.com's implementation, we'll implement their approach:
+### SimplePDF.com Worker Implementation Approach - Revised
+After deeper analysis of SimplePDF.com's implementation, we've discovered they use dynamic imports with proper bundling. Here's our revised approach:
 
-1. **Direct Worker Import**
+1. **Dynamic Worker Import**
    ```typescript
    // pdfjs-worker-setup.ts
    import { pdfjs } from 'react-pdf';
-   import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry';
    
-   pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+   const loadPdfWorker = async () => {
+     try {
+       // Dynamic import creates a separate chunk during build
+       const workerModule = await import('pdfjs-dist/build/pdf.worker.js');
+       return workerModule;
+     } catch (error) {
+       console.error('Failed to load PDF.js worker:', error);
+       throw error;
+     }
+   };
+   
+   export const initializeWorker = async () => {
+     try {
+       const workerModule = await loadPdfWorker();
+       pdfjs.GlobalWorkerOptions.workerSrc = workerModule;
+       
+       // Set global flags for debugging
+       (window as any).__PDFJS_WORKER_INITIALIZED = true;
+       (window as any).__PDFJS_WORKER_VERSION = '4.8.69';
+       (window as any).__PDFJS_WORKER_METHOD = 'dynamic-import';
+       
+       return true;
+     } catch (error) {
+       console.error('Worker initialization failed:', error);
+       return false;
+     }
+   };
    ```
 
-2. **Early Initialization**
+2. **Early Asynchronous Initialization**
    ```typescript
    // main.tsx (at top)
-   import './pdfjs-worker-setup';
+   import { initializeWorker } from './pdfjs-worker-setup';
+   
+   // Initialize worker as early as possible
+   initializeWorker().catch(err => {
+     console.error('Failed to initialize PDF.js worker:', err);
+   });
    ```
 
-3. **Pass Worker Explicitly**
-   ```tsx
-   // PDFDocument.tsx
-   <Document
-     options={{
-       worker: pdfjs.GlobalWorkerOptions.workerSrc,
-       // Other options...
-     }}
-   >
-   ```
-
-4. **Verification and Safety Checks**
+3. **Vite Configuration Update for Worker**
    ```typescript
-   // Error handling in PDFDocument
-   useEffect(() => {
-     if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-       setError(new Error('PDF.js worker not initialized properly'));
+   // vite.config.ts
+   export default defineConfig({
+     // Other configuration...
+     build: {
+       // Ensure the worker is properly chunked during build
+       rollupOptions: {
+         output: {
+           manualChunks: {
+             'pdf.worker': ['pdfjs-dist/build/pdf.worker.js']
+           }
+         }
+       }
      }
+   });
+   ```
+
+4. **Component Initialization with Worker Ready Check**
+   ```typescript
+   // PDFViewerContainer.tsx
+   useEffect(() => {
+     const checkWorker = async () => {
+       if (!(window as any).__PDFJS_WORKER_INITIALIZED) {
+         try {
+           await initializeWorker();
+           console.log('Worker initialized from component');
+         } catch (error) {
+           setError(new Error('Failed to initialize PDF.js worker'));
+         }
+       }
+     };
+     
+     checkWorker();
    }, []);
    ```
 
-5. **Timeout Adjustments**
+5. **Improved Error Handling and Diagnostics**
    ```typescript
-   // Increase timeout for testing
-   setTimeout(() => { /* timeout logic */ }, 20000);
+   // Additional diagnostics in PDFDocument.tsx
+   useEffect(() => {
+     // Log worker status on mount
+     console.log('Worker status:', {
+       initialized: (window as any).__PDFJS_WORKER_INITIALIZED,
+       version: (window as any).__PDFJS_WORKER_VERSION,
+       method: (window as any).__PDFJS_WORKER_METHOD,
+       workerSrc: pdfjs.GlobalWorkerOptions.workerSrc
+     });
+   }, []);
    ```
 
-This approach ensures consistent worker availability to both PDF.js directly and through React-PDF's internal usage, avoiding the conflicts we're experiencing with CDN-based approaches.
+This approach properly bundles the worker file with Vite, making it accessible from the same origin as the main application, avoiding the issues we encountered with direct node_modules references.
 
 ### Memory Management Strategy
 - Track and clean up pages that are not in view
@@ -394,6 +449,19 @@ This approach ensures consistent worker availability to both PDF.js directly and
   - Pass worker explicitly in Document options
 - Revised migration plan to incorporate direct import approach
 - Ready to implement SimplePDF.com worker loading strategy
+
+### April 11, 2:30 PM, 2025
+- Initial implementation of SimplePDF.com approach encountered issues
+- Direct path to worker file in node_modules is not accessible in browser
+- Performed deeper analysis of SimplePDF.com's implementation
+- Discovered they use dynamic imports with proper bundling, not direct references
+- Identified need to revise our approach to properly bundle the worker file
+- Created new detailed plan:
+  - Update worker loading to use dynamic imports
+  - Configure Vite to properly bundle worker as separate chunk
+  - Ensure worker is loaded from same origin as application
+  - Remove direct references to node_modules paths
+- Re-evaluated SimplePDF.com approach with more accurate understanding
 
 ## Post-Migration Cleanup Tasks
 After the migration is fully complete and the new implementation has been deployed to production, the following cleanup tasks should be performed:
