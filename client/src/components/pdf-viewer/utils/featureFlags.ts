@@ -145,41 +145,12 @@ export const resetFeatureFlags = (): void => {
  * PDFViewerSelector component props
  */
 export interface PDFViewerSelectorProps {
-  // Option force flags
+  // Toggle options
   forceNew?: boolean;
   forceIframe?: boolean;
   
-  // Render props for different implementations
+  // Render functions
   legacyRenderer: () => JSX.Element;
   newRenderer: () => JSX.Element;
   iframeRenderer?: () => JSX.Element;
 }
-
-/**
- * Determine which PDF viewer implementation to use based on feature flags
- * 
- * @param props Component props
- * @returns JSX.Element from the appropriate renderer
- */
-export const PDFViewerSelector = (props: PDFViewerSelectorProps): JSX.Element => {
-  const { 
-    forceNew, 
-    forceIframe,
-    legacyRenderer, 
-    newRenderer, 
-    iframeRenderer
-  } = props;
-  
-  // Check which implementation to use
-  const useIframe = forceIframe || isFeatureEnabled('useIframePDFViewer');
-  const useNew = !useIframe && (forceNew || isFeatureEnabled('useNewPDFViewer'));
-  
-  // Return the appropriate renderer
-  if (useIframe && iframeRenderer) {
-    return iframeRenderer();
-  } else if (useNew) {
-    return newRenderer();
-  } else {
-    return legacyRenderer();
-  }
-};

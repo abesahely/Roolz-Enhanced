@@ -25,11 +25,18 @@ const Home: React.FC = () => {
       <main className="flex-grow container mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-benext-white text-2xl">Roolz</h1>
-          <Link href="/test-pdf">
-            <Button variant="outline" className="border-benext-orange text-benext-orange hover:bg-benext-orange hover:text-white">
-              Test PDF Viewer
-            </Button>
-          </Link>
+          <div className="flex gap-4">
+            <Link href="/test-pdf">
+              <Button variant="outline" className="border-benext-orange text-benext-orange hover:bg-benext-orange hover:text-white">
+                Test PDF Viewer
+              </Button>
+            </Link>
+            <Link href="/test-iframe-pdf">
+              <Button variant="outline" className="border-benext-orange text-benext-orange hover:bg-benext-orange hover:text-white">
+                Test Iframe PDF Viewer
+              </Button>
+            </Link>
+          </div>
         </div>
         <DragDropUpload
           onFileUpload={handleFileUpload}
