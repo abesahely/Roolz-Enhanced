@@ -71,6 +71,29 @@ const TestPDFViewer: React.FC = () => {
             <p className="text-benext-white mb-4">
               Upload a PDF file to test the {forceNew ? "new" : "legacy"} PDF viewer implementation.
             </p>
+            <div className="mb-4">
+              <Button 
+                onClick={async () => {
+                  try {
+                    // Fetch the test PDF from public directory
+                    const response = await fetch('/test.pdf');
+                    const blob = await response.blob();
+                    const testFile = new File([blob], 'test.pdf', { type: 'application/pdf' });
+                    handleFileUpload(testFile);
+                  } catch (error) {
+                    console.error('Error loading test PDF:', error);
+                    alert('Error loading test PDF. Check console for details.');
+                  }
+                }}
+                variant="default"
+                className="bg-benext-orange hover:bg-benext-orange/90 mb-4"
+              >
+                Use Test PDF
+              </Button>
+              <p className="text-gray-400 text-sm">
+                Use our simple test PDF to quickly verify the viewer functionality
+              </p>
+            </div>
             <DragDropUpload
               onFileUpload={handleFileUpload}
               isUploading={isUploading}

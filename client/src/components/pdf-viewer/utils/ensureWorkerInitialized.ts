@@ -4,12 +4,10 @@
  * This module provides a utility function to ensure the PDF.js worker
  * is properly initialized before any PDF rendering occurs.
  * 
- * Following SimplePDF.com approach with direct worker imports.
+ * Following SimplePDF.com approach with direct paths to worker.
  */
 
 import { pdfjs } from 'react-pdf';
-// Import the worker entry point to ensure it's included in the bundle
-import 'pdfjs-dist/build/pdf.worker.entry';
 import { PDFJS_VERSION } from '../../../pdfjs-worker-setup';
 
 /**
@@ -33,21 +31,18 @@ export function ensureWorkerInitialized(): boolean {
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
     console.warn('PDF.js worker not initialized by global setup, initializing from utility');
     
-    // Set the worker path directly using URL resolution
-    const workerPath = new URL(
-      'pdfjs-dist/build/pdf.worker.min.js',
-      import.meta.url
-    ).href;
+    // Use the same approach as in pdfjs-worker-setup.ts
+    const workerSrc = `/node_modules/pdfjs-dist/build/pdf.worker.min.js`;
     
-    // Use resolved worker path
-    pdfjs.GlobalWorkerOptions.workerSrc = workerPath;
+    // Use worker path for initialization
+    pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
     
     // Set initialization flags
     (window as any).__PDFJS_WORKER_INITIALIZED = true;
     (window as any).__PDFJS_WORKER_VERSION = PDFJS_VERSION;
     (window as any).__PDFJS_WORKER_METHOD = 'utility-fallback';
     
-    console.log('PDF.js worker initialized with fallback path:', workerPath);
+    console.log('PDF.js worker initialized with fallback path:', workerSrc);
     return true;
   }
   

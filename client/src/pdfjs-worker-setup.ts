@@ -1,15 +1,12 @@
 import * as pdfjsLib from 'pdfjs-dist';
 // Import pdfjs from react-pdf to ensure we're configuring the same instance
 import { pdfjs } from 'react-pdf';
-// Import the worker entry point path directly
-// Note: PDF.js doesn't provide a default export, so we import the path directly
-import 'pdfjs-dist/build/pdf.worker.entry';
 
 /**
  * PDF.js Worker Configuration
  * 
  * This is the single source of truth for PDF.js worker configuration.
- * Following SimplePDF.com approach of directly importing the worker file.
+ * Following SimplePDF.com approach of using a direct path to the worker.
  */
 
 // Version constants
@@ -17,31 +14,28 @@ import 'pdfjs-dist/build/pdf.worker.entry';
 // This ensures compatibility between pdfjs-dist and react-pdf
 export const PDFJS_VERSION = '4.8.69';
 
-// For Vite, we need a specific approach
-// Using direct worker import is more reliable than CDN URLs
-// Check if we're in a browser environment
+// Following SimplePDF.com approach with local module pathing
+// This avoids issues with CDN URLs and worker imports
 if (typeof window !== 'undefined' && 'Worker' in window) {
   try {
-    console.log(`Initializing PDF.js worker (version ${PDFJS_VERSION}) with direct import`);
+    console.log(`Initializing PDF.js worker (version ${PDFJS_VERSION})`);
     
-    // Set the worker path directly instead of using the import
-    const workerPath = new URL(
-      'pdfjs-dist/build/pdf.worker.min.js',
-      import.meta.url
-    ).href;
+    // Create a direct path to the worker file
+    // This is more reliable than using CDN URLs or imports
+    const workerSrc = `/node_modules/pdfjs-dist/build/pdf.worker.min.js`;
     
     // Set worker source for both pdfjsLib and pdfjs from react-pdf 
     // This ensures both libraries use the same worker
-    pdfjsLib.GlobalWorkerOptions.workerSrc = workerPath;
-    pdfjs.GlobalWorkerOptions.workerSrc = workerPath;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
+    pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
     
     // Add flags to window to indicate worker is initialized
     // This helps with debugging and prevents double initialization
     (window as any).__PDFJS_WORKER_INITIALIZED = true;
     (window as any).__PDFJS_WORKER_VERSION = PDFJS_VERSION;
-    (window as any).__PDFJS_WORKER_METHOD = 'direct-import';
+    (window as any).__PDFJS_WORKER_METHOD = 'local-path';
     
-    console.log('Worker initialized successfully with path:', workerPath);
+    console.log('Worker initialized successfully with path:', workerSrc);
   } catch (error) {
     console.error('Failed to initialize PDF.js worker:', error);
     // Don't set a fallback - better to fail clearly than with confusing symptoms

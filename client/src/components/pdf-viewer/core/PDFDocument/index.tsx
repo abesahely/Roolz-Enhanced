@@ -304,9 +304,8 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
         options={{
           cMapUrl: 'https://unpkg.com/pdfjs-dist@4.8.69/cmaps/',
           cMapPacked: true,
-          standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@4.8.69/standard_fonts/',
-          // Pass worker source explicitly - SimplePDF.com approach
-          worker: pdfjs.GlobalWorkerOptions.workerSrc
+          standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@4.8.69/standard_fonts/'
+          // Worker is already set globally, passing explicitly causes type issues
         }}
       >
         {currentPage <= (numPages || 0) && (
