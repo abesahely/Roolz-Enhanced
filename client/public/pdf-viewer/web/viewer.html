@@ -46,7 +46,8 @@ See https://github.com/adobe-type-tools/cmap-resources
   });
   
   // Define worker path globally before loading PDF.js
-  window.PDFWorkerPath = new URL('../build/pdf.worker.js', window.location.href).href;
+  // Use special server route that correctly sets the MIME type
+  window.PDFWorkerPath = '/pdf-worker.js';
   console.log('Setting worker path to:', window.PDFWorkerPath);
 </script>
 <script src="../build/pdf.mjs" type="module"></script>

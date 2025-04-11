@@ -26,19 +26,19 @@
 /************************************************************************/
 /******/ /* webpack/runtime/define property getters */
 /******/ (() => {
-/******/ 	// define getter functions for harmony exports
-/******/ 	__webpack_require__.d = (exports, definition) => {
-/******/ 		for(var key in definition) {
-/******/ 			if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
-/******/ 				Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
-/******/ 			}
-/******/ 		}
-/******/ 	};
+/******/        // define getter functions for harmony exports
+/******/        __webpack_require__.d = (exports, definition) => {
+/******/                for(var key in definition) {
+/******/                        if(__webpack_require__.o(definition, key) && !__webpack_require__.o(exports, key)) {
+/******/                                Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
+/******/                        }
+/******/                }
+/******/        };
 /******/ })();
 /******/ 
 /******/ /* webpack/runtime/hasOwnProperty shorthand */
 /******/ (() => {
-/******/ 	__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
+/******/        __webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 /******/ })();
 /******/ 
 /************************************************************************/
@@ -14841,6 +14841,12 @@ const PDFViewerApplication = {
       AppOptions.get("debuggerSrc"));
       this._PDFBug = PDFBug;
     };
+    // Explicitly set the worker source from our global variable
+    if (window.PDFWorkerPath) {
+      console.log('Using explicitly configured worker path:', window.PDFWorkerPath);
+      GlobalWorkerOptions.workerSrc = window.PDFWorkerPath;
+    }
+    
     if (params.get("disableworker") === "true") {
       try {
         GlobalWorkerOptions.workerSrc ||= AppOptions.get("workerSrc");
@@ -15347,7 +15353,16 @@ const PDFViewerApplication = {
       await this.close();
     }
     const workerParams = AppOptions.getAll(OptionKind.WORKER);
+    
+    // If our custom worker path is set, preserve it and add it to worker params
+    const customWorkerPath = window.PDFWorkerPath;
     Object.assign(GlobalWorkerOptions, workerParams);
+    
+    // Prioritize our custom worker path if available
+    if (customWorkerPath) {
+      console.log('Prioritizing custom worker path:', customWorkerPath);
+      GlobalWorkerOptions.workerSrc = customWorkerPath;
+    }
     if (args.url) {
       this.setTitleUsingUrl(args.originalUrl || args.url, args.url);
     }

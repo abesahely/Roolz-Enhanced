@@ -100,6 +100,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Special route to serve PDF.js worker file with the correct MIME type
+  app.get('/pdf-worker.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.sendFile('client/public/pdf-viewer/build/pdf.worker.js', { root: '.' });
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
