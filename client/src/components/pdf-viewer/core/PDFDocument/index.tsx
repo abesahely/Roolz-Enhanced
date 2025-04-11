@@ -9,10 +9,7 @@ import LoadingState from '../LoadingState';
 import { usePDFContext } from '../../context/PDFContext';
 import { useAnnotationContext } from '../../context/AnnotationContext';
 import { BRAND_COLORS } from '@/lib/constants';
-
-// Set up PDF.js worker manually for react-pdf
-pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-console.log('PDF.js worker source set directly in PDFDocument component:', pdfjs.GlobalWorkerOptions.workerSrc);
+import { ensureWorkerInitialized } from '../../utils/ensureWorkerInitialized';
 
 interface PDFDocumentProps {
   initialPage?: number;
@@ -30,6 +27,11 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
   onPageChange,
   className = ''
 }) => {
+  // Verify worker initialization
+  useEffect(() => {
+    ensureWorkerInitialized();
+  }, []);
+
   // Contexts
   const { 
     file, 
@@ -299,9 +301,8 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
         options={{
           cMapUrl: 'https://unpkg.com/pdfjs-dist@4.8.69/cmaps/',
           cMapPacked: true,
-          standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@4.8.69/standard_fonts/',
-          disableWorker: false, // Make sure worker is enabled
-          verbosity: 1 // Increase logging level for debugging
+          standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@4.8.69/standard_fonts/'
+          // Worker is managed globally through our initialization utilities
         }}
       >
         {currentPage <= (numPages || 0) && (
