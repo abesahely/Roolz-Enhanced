@@ -1,3 +1,7 @@
+// Import worker setup first to ensure early initialization
+// Following SimplePDF.com approach
+import './pdfjs-worker-setup';
+
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";

@@ -3,9 +3,13 @@
  * 
  * This module provides a utility function to ensure the PDF.js worker
  * is properly initialized before any PDF rendering occurs.
+ * 
+ * Following SimplePDF.com approach with direct worker imports.
  */
 
 import { pdfjs } from 'react-pdf';
+// Import the worker entry point to ensure it's included in the bundle
+import 'pdfjs-dist/build/pdf.worker.entry';
 import { PDFJS_VERSION } from '../../../pdfjs-worker-setup';
 
 /**
@@ -17,7 +21,10 @@ import { PDFJS_VERSION } from '../../../pdfjs-worker-setup';
 export function ensureWorkerInitialized(): boolean {
   // Check if worker is already initialized
   if ((window as any).__PDFJS_WORKER_INITIALIZED) {
-    console.log('PDF.js worker already initialized with version:', (window as any).__PDFJS_WORKER_VERSION);
+    console.log('PDF.js worker already initialized:', {
+      version: (window as any).__PDFJS_WORKER_VERSION,
+      method: (window as any).__PDFJS_WORKER_METHOD || 'unknown'
+    });
     return true;
   }
   
@@ -26,18 +33,28 @@ export function ensureWorkerInitialized(): boolean {
   if (!pdfjs.GlobalWorkerOptions.workerSrc) {
     console.warn('PDF.js worker not initialized by global setup, initializing from utility');
     
-    // Use the same version that react-pdf is using internally
-    pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`;
+    // Set the worker path directly using URL resolution
+    const workerPath = new URL(
+      'pdfjs-dist/build/pdf.worker.min.js',
+      import.meta.url
+    ).href;
+    
+    // Use resolved worker path
+    pdfjs.GlobalWorkerOptions.workerSrc = workerPath;
     
     // Set initialization flags
     (window as any).__PDFJS_WORKER_INITIALIZED = true;
     (window as any).__PDFJS_WORKER_VERSION = PDFJS_VERSION;
+    (window as any).__PDFJS_WORKER_METHOD = 'utility-fallback';
     
-    console.log('PDF.js worker initialized with version:', PDFJS_VERSION);
+    console.log('PDF.js worker initialized with fallback path:', workerPath);
     return true;
   }
   
   // Worker is initialized but not by our code
-  console.log('PDF.js worker initialized by external code:', pdfjs.GlobalWorkerOptions.workerSrc);
+  console.log('PDF.js worker initialized by external code:', {
+    workerSrc: pdfjs.GlobalWorkerOptions.workerSrc,
+    type: typeof pdfjs.GlobalWorkerOptions.workerSrc
+  });
   return true;
 }

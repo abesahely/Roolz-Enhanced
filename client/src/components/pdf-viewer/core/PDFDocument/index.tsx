@@ -85,10 +85,12 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
 
       // Add timeout to reset loading state if onLoadSuccess never fires
       // This is a safety mechanism in case there's an issue with the PDF.js worker
+      // Increased to 20 seconds for SimplePDF.com approach testing
       const safetyTimeout = setTimeout(() => {
         if (loading) {
           console.warn('Safety timeout: PDF loading took too long, resetting loading state');
           console.warn('Worker source:', pdfjs.GlobalWorkerOptions.workerSrc);
+          console.warn('Worker method:', (window as any).__PDFJS_WORKER_METHOD || 'unknown');
           console.warn('File details:', {
             name: file.name,
             type: file.type,
@@ -103,6 +105,7 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
               ? 'Worker source set correctly' 
               : 'Worker source not set';
             console.warn('Worker status:', workerStatus);
+            console.warn('Worker type:', typeof pdfjs.GlobalWorkerOptions.workerSrc);
           } catch (e) {
             console.error('Error checking worker status:', e);
           }
@@ -110,7 +113,7 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
           setLoading(false);
           setError(new Error('PDF loading timed out. There may be an issue with the PDF.js worker. Please try again or use a different PDF file.'));
         }
-      }, 10000); // Increase timeout to 10 seconds
+      }, 20000); // Increase timeout to 20 seconds for testing
 
       // Clean up
       return () => {
@@ -301,8 +304,9 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
         options={{
           cMapUrl: 'https://unpkg.com/pdfjs-dist@4.8.69/cmaps/',
           cMapPacked: true,
-          standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@4.8.69/standard_fonts/'
-          // Worker is managed globally through our initialization utilities
+          standardFontDataUrl: 'https://unpkg.com/pdfjs-dist@4.8.69/standard_fonts/',
+          // Pass worker source explicitly - SimplePDF.com approach
+          worker: pdfjs.GlobalWorkerOptions.workerSrc
         }}
       >
         {currentPage <= (numPages || 0) && (
