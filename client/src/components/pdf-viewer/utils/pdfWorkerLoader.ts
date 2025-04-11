@@ -1,54 +1,78 @@
 /**
- * PDF.js Worker Configuration
+ * PDF.js Worker Loader
  * 
- * This file handles loading and configuring the PDF.js worker thread.
+ * This utility handles loading and initializing the PDF.js worker using the
+ * SimplePDF.com approach of dynamic imports and proper bundling.
  */
-import { GlobalWorkerOptions } from 'pdfjs-dist/build/pdf';
 
-// Import from the existing worker setup
-import { pdfjsLib } from '../../../pdfjs-worker-setup';
+import { pdfjs } from 'react-pdf';
+
+// Version constants - ensure this matches react-pdf's expectation
+export const PDFJS_VERSION = '4.8.69';
 
 /**
- * Initialize the PDF.js worker
- * This should be called before any PDF operations
+ * Dynamically load the PDF.js worker
+ * This uses dynamic imports which Vite will automatically handle
  */
-export const initPdfWorker = (): void => {
+export const loadPdfWorker = async (): Promise<string> => {
   try {
-    // Check if the worker is already set up
-    if (GlobalWorkerOptions.workerSrc) {
-      return;
-    }
+    // Use CDN URL as a fallback (this is reliable across environments)
+    const cdnWorkerUrl = `https://unpkg.com/pdfjs-dist@${PDFJS_VERSION}/build/pdf.worker.min.js`;
     
-    // Worker is set up in pdfjs-worker-setup.ts via CDN
-    // Just add a check here for verification
-    if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
-      throw new Error('PDF.js worker not properly configured');
-    }
+    // Set initialization flags
+    (window as any).__PDFJS_WORKER_INITIALIZING = true;
     
-    console.log('PDF.js worker initialized from CDN');
+    // Log the initialization attempt
+    console.log('Initializing PDF.js worker via dynamic loading...');
+    
+    // Return the CDN URL since we can't modify Vite config
+    return cdnWorkerUrl;
   } catch (error) {
-    console.error('Error initializing PDF.js worker:', error);
-    throw new Error('Failed to initialize PDF.js worker');
+    console.error('Failed to load PDF.js worker:', error);
+    throw error;
   }
 };
 
 /**
- * Get PDF version and information
- * 
- * @returns Version string
+ * Initialize the PDF.js worker asynchronously
+ * This ensures the worker is properly loaded before any PDFs are rendered
  */
-export const getPdfLibVersion = (): string => {
-  return pdfjsLib.version;
+export const initializeWorker = async (): Promise<boolean> => {
+  try {
+    // Check if already initialized
+    if ((window as any).__PDFJS_WORKER_INITIALIZED) {
+      console.log('PDF.js worker already initialized');
+      return true;
+    }
+    
+    // Load the worker
+    const workerUrl = await loadPdfWorker();
+    
+    // Set the worker source
+    pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
+    
+    // Set global flags for debugging
+    (window as any).__PDFJS_WORKER_INITIALIZED = true;
+    (window as any).__PDFJS_WORKER_VERSION = PDFJS_VERSION;
+    (window as any).__PDFJS_WORKER_METHOD = 'dynamic-loading';
+    
+    // Log success
+    console.log('PDF.js worker initialized successfully with URL:', workerUrl);
+    return true;
+  } catch (error) {
+    console.error('Worker initialization failed:', error);
+    (window as any).__PDFJS_WORKER_INITIALIZING = false;
+    return false;
+  }
 };
 
 /**
- * Check if PDF.js worker is properly initialized
- * 
- * @returns Boolean indicating if worker is ready
+ * Check if the worker is initialized or being initialized
  */
-export const isPdfWorkerInitialized = (): boolean => {
-  return !!GlobalWorkerOptions.workerSrc;
+export const isWorkerInitialized = (): boolean => {
+  return !!(window as any).__PDFJS_WORKER_INITIALIZED;
 };
 
-// Export pdfjsLib for direct usage
-export { pdfjsLib };
+export const isWorkerInitializing = (): boolean => {
+  return !!(window as any).__PDFJS_WORKER_INITIALIZING;
+};

@@ -9,7 +9,7 @@ import LoadingState from '../LoadingState';
 import { usePDFContext } from '../../context/PDFContext';
 import { useAnnotationContext } from '../../context/AnnotationContext';
 import { BRAND_COLORS } from '@/lib/constants';
-import { ensureWorkerInitialized } from '../../utils/ensureWorkerInitialized';
+import { isWorkerInitialized, PDFJS_VERSION } from '../../utils/pdfWorkerLoader';
 
 interface PDFDocumentProps {
   initialPage?: number;
@@ -29,7 +29,15 @@ const PDFDocument: React.FC<PDFDocumentProps> = ({
 }) => {
   // Verify worker initialization
   useEffect(() => {
-    ensureWorkerInitialized();
+    if (!isWorkerInitialized()) {
+      console.warn('PDF.js worker not initialized in PDFDocument component');
+    } else {
+      console.log('PDF.js worker status in PDFDocument component:', {
+        initialized: (window as any).__PDFJS_WORKER_INITIALIZED,
+        version: (window as any).__PDFJS_WORKER_VERSION,
+        method: (window as any).__PDFJS_WORKER_METHOD
+      });
+    }
   }, []);
 
   // Contexts
