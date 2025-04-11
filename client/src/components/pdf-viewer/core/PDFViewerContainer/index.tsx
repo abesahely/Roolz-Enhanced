@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PDFProvider } from '../../context/PDFContext';
 import { AnnotationProvider } from '../../context/AnnotationContext';
 import { MobileProvider } from '../../context/MobileContext';
@@ -6,6 +6,7 @@ import ErrorBoundary from '../ErrorBoundary';
 import PDFDocument from '../PDFDocument';
 import PDFControlBar from '../PDFControlBar';
 import AnnotationLayerContainer from '../../annotations/AnnotationLayerContainer';
+import { ensureWorkerInitialized } from '../../utils/ensureWorkerInitialized';
 
 export interface PDFViewerContainerProps {
   /**
@@ -65,6 +66,16 @@ const PDFViewerContainer: React.FC<PDFViewerContainerProps> = ({
   errorFallback,
   className = ''
 }) => {
+  // Initialize PDF.js worker when the component mounts
+  // This ensures the worker is available before any PDF operations
+  useEffect(() => {
+    // Initialize or verify PDF.js worker
+    const isInitialized = ensureWorkerInitialized();
+    if (!isInitialized) {
+      console.error('Failed to initialize PDF.js worker in PDFViewerContainer');
+    }
+  }, []);
+
   return (
     <ErrorBoundary fallback={errorFallback}>
       <PDFProvider initialFile={file}>
