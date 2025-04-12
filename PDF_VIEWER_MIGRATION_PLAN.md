@@ -143,10 +143,6 @@ This document tracks the migration from our custom PDF viewer implementation to 
   - [ ] Implement keyboard navigation shortcuts
 
 ### Phase 4: Feature Enhancement
-- [ ] Add external controls if needed
-  - [ ] Implement custom toolbar if needed
-  - [ ] Create page navigation component
-  - [ ] Add download button functionality
 - [ ] Integrate annotation features
   - [ ] Research PDF.js viewer annotation capabilities
   - [ ] Implement custom annotation tools if needed
@@ -156,6 +152,10 @@ This document tracks the migration from our custom PDF viewer implementation to 
   - [ ] Test and fix issues on mobile devices
   - [ ] Add mobile-specific styling
   - [ ] Implement touch gesture handling
+- [ ] Future delivery mechanisms
+  - [ ] Document browser limitations for client-side PDF downloads on mobile
+  - [ ] Plan for server-side email delivery of annotated PDFs
+  - [ ] Research secure storage options for temporary document storage
 
 ### Phase 5: Testing and Integration
 - [ ] Comprehensive testing
