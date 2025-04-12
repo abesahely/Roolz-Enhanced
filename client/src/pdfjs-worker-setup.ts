@@ -12,7 +12,7 @@ import { pdfjs } from 'react-pdf';
 // Version constants
 // Use the version that React-PDF expects internally (4.8.69)
 // This ensures compatibility between pdfjs-dist and react-pdf
-export const PDFJS_VERSION = '4.8.69';
+export const PDFJS_VERSION = '3.11.174';
 
 // Following SimplePDF.com approach with local module pathing
 // This avoids issues with CDN URLs and worker imports

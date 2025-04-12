@@ -8,7 +8,7 @@
 import { pdfjs } from 'react-pdf';
 
 // Version constants - ensure this matches react-pdf's expectation
-export const PDFJS_VERSION = '4.8.69';
+export const PDFJS_VERSION = '3.11.174';
 
 /**
  * Dynamically load the PDF.js worker
