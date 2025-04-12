@@ -290,7 +290,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   };
   
   // Function to render a specific page
-  const renderPage = (pageNum: number) => {
+  const renderPage = (pageNum: number, forceZoomMode?: ZoomMode) => {
     if (!pdfDocRef.current || !canvasRef.current) return;
     
     const pdfDoc = pdfDocRef.current;
@@ -312,6 +312,11 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     setCurrentPage(pageNum);
     if (onPageChange) {
       onPageChange(pageNum);
+    }
+    
+    // If a specific zoom mode is forced, update it
+    if (forceZoomMode) {
+      setZoomMode(forceZoomMode);
     }
     
     // Fetch the page
@@ -423,54 +428,66 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   // Handle next/previous page navigation
   const goToPreviousPage = () => {
     if (currentPage > 1 && !pageRendering) {
-      renderPage(currentPage - 1);
+      // Pass the current zoom mode to maintain it during navigation
+      renderPage(currentPage - 1, zoomMode);
     }
   };
   
   const goToNextPage = () => {
     if (currentPage < numPages && !pageRendering) {
-      renderPage(currentPage + 1);
+      // Pass the current zoom mode to maintain it during navigation
+      renderPage(currentPage + 1, zoomMode);
     }
   };
   
   // Zoom control handlers
   const zoomIn = () => {
+    let newScale: number;
+    
     if (zoomMode !== 'custom') {
       // If not already in custom mode, start with current scale
       // We need to calculate the current scale
       const canvas = canvasRef.current;
       if (!canvas) return;
-      setCustomScale(canvas.width / (canvas.width / customScale) * (1 + SCALE_STEP));
+      newScale = canvas.width / (canvas.width / customScale) * (1 + SCALE_STEP);
     } else {
       // Already in custom mode, just increase the scale
-      setCustomScale(prev => Math.min(prev * (1 + SCALE_STEP), MAX_SCALE));
+      newScale = Math.min(customScale * (1 + SCALE_STEP), MAX_SCALE);
     }
+    
+    setCustomScale(newScale);
+    // Set zoom mode first, then render with that mode explicitly
     setZoomMode('custom');
-    renderPage(currentPage);
+    renderPage(currentPage, 'custom');
   };
   
   const zoomOut = () => {
+    let newScale: number;
+    
     if (zoomMode !== 'custom') {
       // If not already in custom mode, start with current scale
       const canvas = canvasRef.current;
       if (!canvas) return;
-      setCustomScale(canvas.width / (canvas.width / customScale) * (1 - SCALE_STEP));
+      newScale = canvas.width / (canvas.width / customScale) * (1 - SCALE_STEP);
     } else {
       // Already in custom mode, just decrease the scale
-      setCustomScale(prev => Math.max(prev * (1 - SCALE_STEP), MIN_SCALE));
+      newScale = Math.max(customScale * (1 - SCALE_STEP), MIN_SCALE);
     }
+    
+    setCustomScale(newScale);
+    // Set zoom mode first, then render with that mode explicitly
     setZoomMode('custom');
-    renderPage(currentPage);
+    renderPage(currentPage, 'custom');
   };
   
   const setFitWidth = () => {
     setZoomMode('fit-width');
-    renderPage(currentPage);
+    renderPage(currentPage, 'fit-width');
   };
   
   const setFitPage = () => {
     setZoomMode('fit-page');
-    renderPage(currentPage);
+    renderPage(currentPage, 'fit-page');
   };
 
   // Render loading state
@@ -573,7 +590,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
                 onChange={(e) => {
                   const newMode = e.target.value as ZoomMode;
                   setZoomMode(newMode);
-                  renderPage(currentPage);
+                  renderPage(currentPage, newMode);
                 }}
                 className="appearance-none bg-transparent text-white px-2 py-1 pr-6 border-x border-white/20 cursor-pointer text-sm"
                 disabled={pageRendering}
