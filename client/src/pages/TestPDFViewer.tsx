@@ -102,8 +102,8 @@ const TestPDFViewer: React.FC = () => {
               onClick={selectDirectViewer}
               variant={forceDirect ? "default" : "outline"}
               className={forceDirect 
-                ? `bg-${BRAND_COLORS.ORANGE}/90 hover:bg-${BRAND_COLORS.ORANGE} border-none` 
-                : `border-${BRAND_COLORS.ORANGE} text-${BRAND_COLORS.ORANGE}`}
+                ? "bg-benext-orange hover:bg-benext-orange/90 border-none" 
+                : "border-benext-orange text-benext-orange"}
             >
               Direct Viewer (PDF.js)
             </Button>
@@ -225,6 +225,8 @@ const TestPDFViewer: React.FC = () => {
               enableAnnotations={true}
               initialPage={1}
               forceNew={forceNew}
+              forceIframe={forceIframe}
+              forceDirect={forceDirect}
             />
           </div>
         )}
