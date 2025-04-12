@@ -5,15 +5,24 @@ import Footer from "@/components/Footer";
 import PDFViewerToggle from "@/components/pdf-viewer/PDFViewerToggle";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { toggleFeature, isFeatureEnabled } from "@/components/pdf-viewer/utils/featureFlags";
+import { toggleFeature, isFeatureEnabled, resetFeatureFlags } from "@/components/pdf-viewer/utils/featureFlags";
+import { BRAND_COLORS } from "@/lib/constants";
 
 /**
- * TestPDFViewer Component - Test page for the new PDF viewer implementation
+ * TestPDFViewer Component - Test page for all PDF viewer implementations
+ * 
+ * This page allows testing of different PDF viewer implementations:
+ * 1. DirectPDFViewer (preferred direct PDF.js implementation)
+ * 2. Legacy PDFViewer (original implementation)
+ * 3. PDFViewerContainer (React-PDF based implementation)
+ * 4. PDFJSViewer (iframe-based PDF.js pre-built viewer)
  */
 const TestPDFViewer: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [forceNew, setForceNew] = useState(true);
+  const [forceNew, setForceNew] = useState(false);
+  const [forceIframe, setForceIframe] = useState(false);
+  const [forceDirect, setForceDirect] = useState(true);
   const isMobile = useIsMobile();
 
   // Handle file upload
@@ -29,15 +38,52 @@ const TestPDFViewer: React.FC = () => {
     setFile(null);
   };
 
-  // Toggle between implementations
-  const handleToggleImplementation = () => {
-    setForceNew(!forceNew);
+  // Toggle viewer implementations
+  const selectDirectViewer = () => {
+    setForceDirect(true);
+    setForceNew(false);
+    setForceIframe(false);
   };
 
-  // Toggle feature flag in localStorage
-  const handleToggleFeatureFlag = () => {
+  const selectLegacyViewer = () => {
+    setForceDirect(false);
+    setForceNew(false);
+    setForceIframe(false);
+  };
+
+  const selectNewViewer = () => {
+    setForceDirect(false);
+    setForceNew(true);
+    setForceIframe(false);
+  };
+
+  const selectIframeViewer = () => {
+    setForceDirect(false);
+    setForceNew(false);
+    setForceIframe(true);
+  };
+
+  // Reset all feature flags to defaults
+  const handleResetFeatureFlags = () => {
+    resetFeatureFlags();
+    // Force refresh to load new settings
+    window.location.reload();
+  };
+  
+  // Toggle feature flags in localStorage
+  const handleToggleDirectFlag = () => {
+    const newValue = toggleFeature('useDirectPDFViewer');
+    console.log(`Feature flag 'useDirectPDFViewer' set to: ${newValue}`);
+  };
+  
+  const handleToggleNewFlag = () => {
     const newValue = toggleFeature('useNewPDFViewer');
     console.log(`Feature flag 'useNewPDFViewer' set to: ${newValue}`);
+  };
+  
+  const handleToggleIframeFlag = () => {
+    const newValue = toggleFeature('useIframePDFViewer');
+    console.log(`Feature flag 'useIframePDFViewer' set to: ${newValue}`);
   };
 
   return (
@@ -46,30 +92,96 @@ const TestPDFViewer: React.FC = () => {
       <main className="flex-grow container mx-auto px-4 py-6">
         <div className="flex flex-col md:flex-row justify-between items-center mb-6">
           <h1 className="text-benext-white text-2xl mb-2 md:mb-0">PDF Viewer Test</h1>
-          
-          <div className="flex flex-col md:flex-row gap-2 md:gap-4">
+        </div>
+        
+        {/* Viewer Selection */}
+        <div className="bg-gray-800 p-4 rounded-lg mb-6">
+          <h2 className="text-benext-white text-xl mb-4">Select PDF Viewer Implementation</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Button
-              onClick={handleToggleImplementation}
-              variant="secondary"
-              className={forceNew ? "bg-green-600 hover:bg-green-700" : "bg-gray-600 hover:bg-gray-700"}
+              onClick={selectDirectViewer}
+              variant={forceDirect ? "default" : "outline"}
+              className={forceDirect 
+                ? `bg-${BRAND_COLORS.ORANGE}/90 hover:bg-${BRAND_COLORS.ORANGE} border-none` 
+                : `border-${BRAND_COLORS.ORANGE} text-${BRAND_COLORS.ORANGE}`}
             >
-              {forceNew ? "Using New Implementation" : "Using Legacy Implementation"}
+              Direct Viewer (PDF.js)
             </Button>
             
             <Button
-              onClick={handleToggleFeatureFlag}
-              variant="outline"
-              className="border-benext-orange text-benext-orange"
+              onClick={selectLegacyViewer}
+              variant={!forceDirect && !forceNew && !forceIframe ? "default" : "outline"}
+              className={!forceDirect && !forceNew && !forceIframe
+                ? "bg-blue-600 hover:bg-blue-700 border-none"
+                : "border-blue-600 text-blue-500"}
             >
-              Feature Flag: {isFeatureEnabled('useNewPDFViewer') ? 'ON' : 'OFF'}
+              Legacy Viewer
+            </Button>
+            
+            <Button
+              onClick={selectNewViewer}
+              variant={forceNew ? "default" : "outline"}
+              className={forceNew
+                ? "bg-green-600 hover:bg-green-700 border-none"
+                : "border-green-600 text-green-500"}
+            >
+              React-PDF Viewer
+            </Button>
+            
+            <Button
+              onClick={selectIframeViewer}
+              variant={forceIframe ? "default" : "outline"}
+              className={forceIframe
+                ? "bg-purple-600 hover:bg-purple-700 border-none"
+                : "border-purple-600 text-purple-500"}
+            >
+              Iframe Viewer
             </Button>
           </div>
+          
+          <h3 className="text-benext-white text-lg mb-2">Feature Flags</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <Button
+              onClick={handleToggleDirectFlag}
+              variant="outline"
+              size="sm"
+              className="border-benext-orange text-benext-white"
+            >
+              Direct Viewer Flag: {isFeatureEnabled('useDirectPDFViewer') ? 'ON' : 'OFF'}
+            </Button>
+            
+            <Button
+              onClick={handleToggleNewFlag}
+              variant="outline"
+              size="sm"
+              className="border-green-500 text-benext-white"
+            >
+              React-PDF Flag: {isFeatureEnabled('useNewPDFViewer') ? 'ON' : 'OFF'}
+            </Button>
+            
+            <Button
+              onClick={handleToggleIframeFlag}
+              variant="outline"
+              size="sm"
+              className="border-purple-500 text-benext-white"
+            >
+              Iframe Flag: {isFeatureEnabled('useIframePDFViewer') ? 'ON' : 'OFF'}
+            </Button>
+          </div>
+          
+          <Button
+            onClick={handleResetFeatureFlags}
+            variant="destructive"
+            size="sm"
+          >
+            Reset All Feature Flags
+          </Button>
         </div>
         
         {!file ? (
           <div className="mb-8">
             <p className="text-benext-white mb-4">
-              Upload a PDF file to test the {forceNew ? "new" : "legacy"} PDF viewer implementation.
+              Upload a PDF file to test the {forceDirect ? "Direct" : forceNew ? "React-PDF" : forceIframe ? "Iframe" : "Legacy"} PDF viewer implementation.
             </p>
             <div className="mb-4">
               <Button 

@@ -8,8 +8,9 @@
 // Feature flag configuration
 interface FeatureFlags {
   // PDF Viewer implementation flags
-  useNewPDFViewer: boolean;  // Use React-PDF based implementation
-  useIframePDFViewer: boolean; // Use iframe-based PDF.js pre-built viewer (Option 2)
+  useDirectPDFViewer: boolean; // Use direct PDF.js implementation (preferred)
+  useNewPDFViewer: boolean;    // Use React-PDF based implementation
+  useIframePDFViewer: boolean; // Use iframe-based PDF.js pre-built viewer
   
   // Feature-specific flags
   useNewAnnotationTools: boolean;
@@ -23,8 +24,9 @@ interface FeatureFlags {
 
 // Default feature flag values
 const defaultFeatureFlags: FeatureFlags = {
+  useDirectPDFViewer: true,   // Direct PDF.js implementation is now the default (most reliable)
   useNewPDFViewer: false,     // React-PDF implementation off by default
-  useIframePDFViewer: true,   // Default to iframe-based implementation (most reliable)
+  useIframePDFViewer: false,  // Iframe-based implementation off by default now
   useNewAnnotationTools: false,
   useAnnotationAutoSaving: false,
   usePagePreloading: false,
@@ -127,6 +129,7 @@ export const enableForPercentage = (percentage: number): boolean => {
   
   // Save the feature flag
   saveFeatureFlags({
+    useDirectPDFViewer: true, // Always use the direct viewer (unless user changes manually)
     useNewPDFViewer: isEnabled,
     useNewAnnotationTools: isEnabled
   });
@@ -146,11 +149,13 @@ export const resetFeatureFlags = (): void => {
  */
 export interface PDFViewerSelectorProps {
   // Toggle options
-  forceNew?: boolean;
-  forceIframe?: boolean;
+  forceDirect?: boolean; // Force using direct PDF.js implementation (preferred)
+  forceNew?: boolean;    // Force using React-PDF implementation
+  forceIframe?: boolean; // Force using iframe implementation
   
   // Render functions
-  legacyRenderer: () => JSX.Element;
-  newRenderer: () => JSX.Element;
-  iframeRenderer?: () => JSX.Element;
+  directRenderer: () => JSX.Element; // DirectPDFViewer renderer
+  legacyRenderer: () => JSX.Element; // Legacy PDFViewer renderer
+  newRenderer: () => JSX.Element;    // PDFViewerContainer renderer
+  iframeRenderer?: () => JSX.Element; // PDFJSViewer renderer
 }

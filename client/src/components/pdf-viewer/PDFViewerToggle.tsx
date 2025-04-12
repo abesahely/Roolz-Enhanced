@@ -6,6 +6,8 @@ import PDFViewer from '../PDFViewer';
 import { PDFViewerContainer } from './index';
 // Import new iframe-based components
 import { PDFJSViewer } from './iframe-viewer';
+// Import Direct PDF.js implementation
+import { DirectPDFViewer } from './direct-viewer';
 
 interface PDFViewerToggleProps {
   // Original PDFViewer props
@@ -18,15 +20,20 @@ interface PDFViewerToggleProps {
   // Toggle options
   forceNew?: boolean;
   forceIframe?: boolean;
+  forceDirect?: boolean; // Force using DirectPDFViewer implementation
 }
 
 /**
  * PDFViewerToggle Component
  * 
- * This component acts as a switch between three implementations:
- * 1. Legacy PDFViewer (original implementation)
- * 2. PDFViewerContainer (React-PDF based implementation)
- * 3. PDFJSViewer (iframe-based PDF.js pre-built viewer)
+ * This component acts as a switch between four implementations:
+ * 1. DirectPDFViewer (preferred direct PDF.js implementation)
+ * 2. Legacy PDFViewer (original implementation)
+ * 3. PDFViewerContainer (React-PDF based implementation)
+ * 4. PDFJSViewer (iframe-based PDF.js pre-built viewer)
+ * 
+ * The DirectPDFViewer is the recommended implementation for its reliability,
+ * version compatibility, and performance.
  */
 const PDFViewerToggle: React.FC<PDFViewerToggleProps> = ({
   file,
@@ -36,11 +43,25 @@ const PDFViewerToggle: React.FC<PDFViewerToggleProps> = ({
   onPageChange,
   onSaveWithAnnotations,
   forceNew = false,
-  forceIframe = false
+  forceIframe = false,
+  forceDirect = false
 }) => {
-  // Check which viewer to use
-  const useIframe = forceIframe || isFeatureEnabled('useIframePDFViewer');
-  const useNew = !useIframe && (forceNew || isFeatureEnabled('useNewPDFViewer'));
+  // Check which viewer to use - DirectPDFViewer is now the default
+  // unless specific feature flags or force* options override it
+  const useDirect = forceDirect || isFeatureEnabled('useDirectPDFViewer');
+  const useIframe = !useDirect && (forceIframe || isFeatureEnabled('useIframePDFViewer'));
+  const useNew = !useDirect && !useIframe && (forceNew || isFeatureEnabled('useNewPDFViewer'));
+
+  // Render the direct PDF.js viewer (preferred implementation)
+  const renderDirect = () => (
+    <DirectPDFViewer
+      file={file}
+      onClose={onClose}
+      initialPage={initialPage}
+      onPageChange={onPageChange}
+      className="h-full w-full"
+    />
+  );
 
   // Render the legacy PDF viewer
   const renderLegacy = () => (
@@ -78,7 +99,9 @@ const PDFViewerToggle: React.FC<PDFViewerToggleProps> = ({
   );
 
   // Return the appropriate implementation
-  if (useIframe) {
+  if (useDirect) {
+    return renderDirect();
+  } else if (useIframe) {
     return renderIframe();
   } else if (useNew) {
     return renderNew();
