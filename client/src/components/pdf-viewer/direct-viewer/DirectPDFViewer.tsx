@@ -78,6 +78,15 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [pageRendering, setPageRendering] = useState<boolean>(false);
+  
+  // Zoom controls
+  type ZoomMode = 'fit-width' | 'fit-page' | 'custom';
+  const [zoomMode, setZoomMode] = useState<ZoomMode>('fit-width');
+  const [customScale, setCustomScale] = useState<number>(1.0);
+  const MIN_SCALE = 0.25;
+  const MAX_SCALE = 3.0;
+  const SCALE_STEP = 0.1;
+  
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDocRef = useRef<any>(null);
   const pdfArrayBufferRef = useRef<ArrayBuffer | null>(null);
@@ -323,27 +332,38 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       const containerWidth = canvas.parentElement?.clientWidth || 800;
       const containerHeight = canvas.parentElement?.clientHeight || 600;
       
-      // Determine scale to fit in the container (account for padding)
-      const horizontalScale = (containerWidth - 40) / viewport.width;
-      const verticalScale = (containerHeight - 40) / viewport.height;
+      // Calculate padding-adjusted container dimensions
+      const paddingX = 40; // 20px padding on each side
+      const paddingY = 40; // 20px padding on top and bottom
+      const availableWidth = containerWidth - paddingX;
+      const availableHeight = containerHeight - paddingY;
       
-      // Calculate appropriate scale based on device width
-      let scale;
+      // Calculate scales
+      const horizontalScale = availableWidth / viewport.width;
+      const verticalScale = availableHeight / viewport.height;
       
-      // On wider screens (like desktops), prioritize using more width
-      if (window.innerWidth > 1024) {
-        // For larger screens, prefer horizontal scale with a max of 1.5
-        scale = Math.min(horizontalScale, Math.max(verticalScale, 1.0), 1.5);
-      } else if (window.innerWidth > 768) {
-        // For medium screens, balance both dimensions but still favor width
-        scale = Math.min(horizontalScale, verticalScale * 1.1, 1.2);
-      } else {
-        // For mobile, ensure it fits in both dimensions
-        scale = Math.min(horizontalScale, verticalScale, 1.0);
+      // Determine scale based on zoom mode
+      let scale: number;
+      switch (zoomMode) {
+        case 'fit-width':
+          // Use the horizontal scale to fit the width
+          scale = horizontalScale;
+          debugPDFViewer('Using fit-width scale', { scale });
+          break;
+        case 'fit-page':
+          // Use the smaller scale to ensure the entire page fits
+          scale = Math.min(horizontalScale, verticalScale);
+          debugPDFViewer('Using fit-page scale', { scale });
+          break;
+        case 'custom':
+          // Use the custom scale
+          scale = customScale;
+          debugPDFViewer('Using custom scale', { scale });
+          break;
       }
       
-      // Enforce minimum scale to prevent tiny rendering
-      scale = Math.max(scale, 0.4);
+      // Enforce scale limits for safety
+      scale = Math.max(Math.min(scale, MAX_SCALE), MIN_SCALE);
       
       const scaledViewport = page.getViewport({ scale });
       
@@ -412,6 +432,46 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       renderPage(currentPage + 1);
     }
   };
+  
+  // Zoom control handlers
+  const zoomIn = () => {
+    if (zoomMode !== 'custom') {
+      // If not already in custom mode, start with current scale
+      // We need to calculate the current scale
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      setCustomScale(canvas.width / (canvas.width / customScale) * (1 + SCALE_STEP));
+    } else {
+      // Already in custom mode, just increase the scale
+      setCustomScale(prev => Math.min(prev * (1 + SCALE_STEP), MAX_SCALE));
+    }
+    setZoomMode('custom');
+    renderPage(currentPage);
+  };
+  
+  const zoomOut = () => {
+    if (zoomMode !== 'custom') {
+      // If not already in custom mode, start with current scale
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      setCustomScale(canvas.width / (canvas.width / customScale) * (1 - SCALE_STEP));
+    } else {
+      // Already in custom mode, just decrease the scale
+      setCustomScale(prev => Math.max(prev * (1 - SCALE_STEP), MIN_SCALE));
+    }
+    setZoomMode('custom');
+    renderPage(currentPage);
+  };
+  
+  const setFitWidth = () => {
+    setZoomMode('fit-width');
+    renderPage(currentPage);
+  };
+  
+  const setFitPage = () => {
+    setZoomMode('fit-page');
+    renderPage(currentPage);
+  };
 
   // Render loading state
   if (isLoading) {
@@ -465,7 +525,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     <div className={`pdf-viewer-container flex flex-col h-full w-full ${className}`}>
       {/* Mobile-responsive toolbar */}
       <div 
-        className="pdf-viewer-toolbar flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-2"
+        className="pdf-viewer-toolbar flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-2 gap-2"
         style={{ backgroundColor: BRAND_COLORS.NAVY }}
       >
         {/* Document title */}
@@ -494,6 +554,51 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
           >
             Next
           </button>
+        </div>
+        
+        {/* Zoom controls */}
+        <div className="flex items-center justify-between w-full sm:w-auto sm:mr-4 mb-2 sm:mb-0">
+          <div className="flex border border-white/20 rounded overflow-hidden">
+            <button
+              onClick={zoomOut}
+              disabled={pageRendering || (zoomMode === 'custom' && customScale <= MIN_SCALE)}
+              className="px-2 py-1 text-white hover:bg-white/10 disabled:opacity-50 text-sm"
+              title="Zoom out"
+            >
+              −
+            </button>
+            <div className="relative">
+              <select
+                value={zoomMode}
+                onChange={(e) => {
+                  const newMode = e.target.value as ZoomMode;
+                  setZoomMode(newMode);
+                  renderPage(currentPage);
+                }}
+                className="appearance-none bg-transparent text-white px-2 py-1 pr-6 border-x border-white/20 cursor-pointer text-sm"
+                disabled={pageRendering}
+              >
+                <option value="fit-width" className="bg-gray-800">Fit Width</option>
+                <option value="fit-page" className="bg-gray-800">Fit Page</option>
+                <option value="custom" className="bg-gray-800">
+                  {Math.round(customScale * 100)}%
+                </option>
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-1 pointer-events-none">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+            <button
+              onClick={zoomIn}
+              disabled={pageRendering || (zoomMode === 'custom' && customScale >= MAX_SCALE)}
+              className="px-2 py-1 text-white hover:bg-white/10 disabled:opacity-50 text-sm"
+              title="Zoom in"
+            >
+              +
+            </button>
+          </div>
         </div>
         
         {/* Action buttons */}
