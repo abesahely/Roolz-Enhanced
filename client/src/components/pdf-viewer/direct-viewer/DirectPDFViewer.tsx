@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BRAND_COLORS } from '@/lib/constants';
 
 // Import PDF.js directly from node_modules WITHOUT using react-pdf
@@ -107,28 +107,52 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     };
   }, []);
   
-  // Handle window resize to re-render the current page with the correct scale
+  // Simple resize handler that calls renderPage when window is resized
   useEffect(() => {
-    // Only setup resize handler if we have a PDF document and current page
-    if (pdfDocRef.current && currentPage > 0) {
-      const handleResize = () => {
-        // Small debounce to avoid too many renders during resize
-        let resizeTimeout: ReturnType<typeof setTimeout>;
-        
-        clearTimeout(resizeTimeout);
-        resizeTimeout = setTimeout(() => {
-          debugPDFViewer('Window resized, re-rendering current page');
-          renderPage(currentPage);
-        }, 100);
-      };
-      
-      window.addEventListener('resize', handleResize);
-      
-      return () => {
-        window.removeEventListener('resize', handleResize);
-      };
-    }
-  }, [currentPage, pdfDocRef.current]);
+    // Skip if no PDF doc or current page not set
+    if (!pdfDocRef.current || currentPage <= 0) return;
+    
+    // Create a debounced resize handler
+    const handleResize = debounce(() => {
+      debugPDFViewer('Window resized, re-rendering current page');
+      renderPage(currentPage);
+    }, 100);
+    
+    // Add event listener
+    window.addEventListener('resize', handleResize);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      handleResize.cancel();
+    };
+  }, [currentPage, renderPage]);
+  
+  // Debounce utility function
+  function debounce<T extends (...args: any[]) => any>(
+    func: T,
+    wait: number
+  ): T & { cancel: () => void } {
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    
+    const debounced = (...args: Parameters<T>) => {
+      if (timeout !== null) {
+        clearTimeout(timeout);
+      }
+      timeout = setTimeout(() => {
+        func(...args);
+      }, wait);
+    };
+    
+    debounced.cancel = () => {
+      if (timeout !== null) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+    };
+    
+    return debounced as T & { cancel: () => void };
+  }
 
   // Step 1: Load the File as an ArrayBuffer and store it in a ref
   useEffect(() => {
