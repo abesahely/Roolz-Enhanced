@@ -81,7 +81,30 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDocRef = useRef<any>(null);
   const pdfArrayBufferRef = useRef<ArrayBuffer | null>(null);
+  // Store the current render task to cancel it if needed
+  const renderTaskRef = useRef<any>(null);
   
+  // Cleanup function for component unmount
+  useEffect(() => {
+    return () => {
+      // Cancel any ongoing render tasks
+      if (renderTaskRef.current) {
+        debugPDFViewer('Cancelling render task on cleanup');
+        renderTaskRef.current.cancel();
+        renderTaskRef.current = null;
+      }
+      
+      // Destroy any loaded PDF documents
+      if (pdfDocRef.current) {
+        debugPDFViewer('Destroying PDF document on cleanup');
+        pdfDocRef.current.destroy().catch((err: Error) => {
+          console.error("Error destroying PDF:", err);
+        });
+        pdfDocRef.current = null;
+      }
+    };
+  }, []);
+
   // Step 1: Load the File as an ArrayBuffer and store it in a ref
   useEffect(() => {
     if (!file) {
@@ -95,6 +118,12 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
         console.error("Error destroying PDF:", err);
       });
       pdfDocRef.current = null;
+    }
+    
+    // Cancel any ongoing render tasks
+    if (renderTaskRef.current) {
+      renderTaskRef.current.cancel();
+      renderTaskRef.current = null;
     }
     
     setIsLoading(true);
@@ -219,6 +248,13 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       return;
     }
     
+    // If there's an ongoing render task, cancel it
+    if (renderTaskRef.current) {
+      debugPDFViewer('Cancelling previous render task');
+      renderTaskRef.current.cancel();
+      renderTaskRef.current = null;
+    }
+    
     setPageRendering(true);
     
     // Update current page
@@ -234,6 +270,9 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       
       const context = canvas.getContext('2d');
       if (!context) return;
+      
+      // Clear the canvas to prevent artifacts
+      context.clearRect(0, 0, canvas.width, canvas.height);
       
       // Determine viewport dimensions to fit container
       const viewport = page.getViewport({ scale: 1.0 });
@@ -251,27 +290,42 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
         viewport: scaledViewport
       };
       
-      const renderTask = page.render(renderContext);
-      
-      renderTask.promise.then(() => {
-        setPageRendering(false);
-        debugPDFViewer('Page rendered successfully', {
-          pageNum,
-          scale,
-          width: scaledViewport.width,
-          height: scaledViewport.height
-        });
+      try {
+        const renderTask = page.render(renderContext);
+        renderTaskRef.current = renderTask;
         
-        // Notify parent when canvas is ready for annotations
-        if (onCanvasReady && canvas) {
-          debugPDFViewer('Notifying parent component that canvas is ready');
-          onCanvasReady(canvas);
-        }
-      }).catch((err: Error) => {
-        console.error('Error rendering page:', err);
+        renderTask.promise.then(() => {
+          // Only proceed if this is still the current render task
+          if (renderTaskRef.current === renderTask) {
+            setPageRendering(false);
+            debugPDFViewer('Page rendered successfully', {
+              pageNum,
+              scale,
+              width: scaledViewport.width,
+              height: scaledViewport.height
+            });
+            
+            // Notify parent when canvas is ready for annotations
+            if (onCanvasReady && canvas) {
+              debugPDFViewer('Notifying parent component that canvas is ready');
+              onCanvasReady(canvas);
+            }
+            
+            renderTaskRef.current = null;
+          }
+        }).catch((err: Error) => {
+          // Only process error if not cancelled
+          if (err.message !== 'Rendering cancelled') {
+            console.error('Error rendering page:', err);
+            setPageRendering(false);
+            setError(`Failed to render page ${pageNum}: ${err.message}`);
+          }
+        });
+      } catch (err) {
+        console.error('Error initiating render:', err);
         setPageRendering(false);
-        setError(`Failed to render page ${pageNum}: ${err.message}`);
-      });
+        setError(`Failed to initialize page rendering: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
     }).catch((err: Error) => {
       console.error(`Error getting page ${pageNum}:`, err);
       setPageRendering(false);
