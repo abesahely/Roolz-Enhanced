@@ -150,6 +150,9 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     };
   }, [currentPage]);
 
+  // We're now handling zoom mode changes directly in the change handlers,
+  // so we don't need to trigger re-renders in a useEffect, which can cause race conditions
+  
   // Step 1: Load the File as an ArrayBuffer and store it in a ref
   useEffect(() => {
     if (!file) {
@@ -589,8 +592,15 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
                 value={zoomMode}
                 onChange={(e) => {
                   const newMode = e.target.value as ZoomMode;
-                  setZoomMode(newMode);
-                  renderPage(currentPage, newMode);
+                  // Force immediate re-render with the new mode
+                  if (newMode === 'fit-width') {
+                    setFitWidth();
+                  } else if (newMode === 'fit-page') {
+                    setFitPage();
+                  } else {
+                    setZoomMode('custom');
+                    renderPage(currentPage, 'custom');
+                  }
                 }}
                 className="appearance-none bg-transparent text-white px-2 py-1 pr-6 border-x border-white/20 cursor-pointer text-sm"
                 disabled={pageRendering}
