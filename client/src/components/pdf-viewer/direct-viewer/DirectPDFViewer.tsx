@@ -292,7 +292,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     }
   };
   
-  // Function to render a specific page
+  // Function to render a specific page with the current zoom or a forced zoom mode
   const renderPage = (pageNum: number, forceZoomMode?: ZoomMode) => {
     if (!pdfDocRef.current || !canvasRef.current) return;
     
@@ -317,8 +317,12 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       onPageChange(pageNum);
     }
     
-    // If a specific zoom mode is forced, update it
-    if (forceZoomMode) {
+    // Track which zoom mode we'll use for rendering
+    const zoomModeToUse = forceZoomMode || zoomMode;
+    
+    // If we're forcing a zoom mode, update it right away (before starting the render)
+    // This ensures the state is in sync when we start rendering
+    if (forceZoomMode && forceZoomMode !== zoomMode) {
       setZoomMode(forceZoomMode);
     }
     
@@ -350,9 +354,9 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       const horizontalScale = availableWidth / viewport.width;
       const verticalScale = availableHeight / viewport.height;
       
-      // Determine scale based on zoom mode
+      // Determine scale based on zoom mode - using our tracked zoom mode for consistency
       let scale: number;
-      switch (zoomMode) {
+      switch (zoomModeToUse) {
         case 'fit-width':
           // Use the horizontal scale to fit the width
           scale = horizontalScale;
@@ -369,6 +373,8 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
           debugPDFViewer('Using custom scale', { scale });
           break;
       }
+      
+      // We already applied the zoom mode change earlier if needed
       
       // Enforce scale limits for safety
       scale = Math.max(Math.min(scale, MAX_SCALE), MIN_SCALE);
