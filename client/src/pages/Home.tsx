@@ -26,9 +26,9 @@ const Home: React.FC = () => {
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-benext-white text-2xl">Roolz</h1>
           <div className="flex gap-4">
-            <Link href="/test-pdf">
+            <Link href="/test-pdf-viewer">
               <Button variant="outline" className="border-benext-orange text-benext-orange hover:bg-benext-orange hover:text-white">
-                Test PDF Viewer
+                Test All PDF Viewers
               </Button>
             </Link>
             <Link href="/test-iframe-pdf">

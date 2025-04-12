@@ -13,7 +13,7 @@ const Router: React.FC = () => (
   <Switch>
     <Route path="/" component={Home} />
     <Route path="/view" component={View} />
-    <Route path="/test-pdf" component={TestPDFViewer} />
+    <Route path="/test-pdf-viewer" component={TestPDFViewer} />
     <Route path="/test-iframe-pdf" component={TestIframePDFViewer} />
     <Route path="/test-direct-pdf" component={TestDirectPDFViewer} />
     <Route component={NotFound} />

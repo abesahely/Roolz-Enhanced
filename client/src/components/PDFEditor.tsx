@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { fabric } from "fabric";
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { saveAs } from 'file-saver';
-import PDFViewer from "@/components/PDFViewer";
+import PDFViewerToggle from "@/components/pdf-viewer/PDFViewerToggle";
 import AnnotationTools from "@/components/AnnotationTools";
 import SignatureModal from "@/components/SignatureModal";
 import CheckboxTool from "@/components/CheckboxTool";
@@ -611,13 +611,14 @@ const PDFEditor: React.FC<PDFEditorProps> = ({ file, onClose }) => {
   return (
     <div className="flex flex-col lg:flex-row h-full gap-4 max-w-screen-2xl mx-auto">
       <div ref={canvasContainerRef} className="relative flex-grow min-w-0">
-        <PDFViewer 
+        <PDFViewerToggle 
           file={file} 
           onClose={onClose} 
           onCanvasReady={handleCanvasReady}
           onSaveWithAnnotations={saveAnnotatedPDF}
           initialPage={currentPage}
           onPageChange={(pageNumber) => setCurrentPage(pageNumber)}
+          forceDirect={true} // Force use of DirectPDFViewer
         />
         
         {/* Annotation layer is created dynamically */}
