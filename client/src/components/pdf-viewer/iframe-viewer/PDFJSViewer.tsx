@@ -7,8 +7,8 @@ const debugPDFViewer = (message: string, data?: any) => {
   console.log(`[PDFViewer Debug] ${message}`, data || '');
 };
 
-// Set worker path for PDF.js
-pdfjs.GlobalWorkerOptions.workerSrc = '/node_modules/pdfjs-dist/build/pdf.worker.min.js';
+// Set worker path for PDF.js - use public file that we copied from node_modules
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
 
 interface PDFJSViewerProps {
   /**
