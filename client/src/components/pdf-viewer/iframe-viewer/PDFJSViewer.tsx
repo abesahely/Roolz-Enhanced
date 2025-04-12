@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BRAND_COLORS } from '@/lib/constants';
-import { pdfjs } from 'react-pdf';
+
+// Import PDF.js directly to avoid version conflicts with react-pdf
+import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+import { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist/build/pdf';
+import 'pdfjs-dist/build/pdf.worker.entry';
 
 // Debug logger for PDF viewer issues
 const debugPDFViewer = (message: string, data?: any) => {
   console.log(`[PDFViewer Debug] ${message}`, data || '');
 };
 
-// Set worker path for PDF.js - use public file that we copied from node_modules
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
+// Set the worker source directly
+pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.js';
 
 interface PDFJSViewerProps {
   /**
@@ -56,7 +60,7 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [pageRendering, setPageRendering] = useState<boolean>(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const pdfDocRef = useRef<any>(null);
+  const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
   const pdfArrayBufferRef = useRef<ArrayBuffer | null>(null);
   
   // Step 1: Load the File as an ArrayBuffer and store it in a ref
@@ -156,18 +160,18 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
     // Ensure worker is configured
     const workerSrc = '/pdf.worker.js';
     debugPDFViewer('Setting worker path:', workerSrc);
-    pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
     
     try {
       // Load the document directly from the array buffer
-      const loadingTask = pdfjs.getDocument({
+      const loadingTask = pdfjsLib.getDocument({
         data: pdfArrayBufferRef.current,
         useWorkerFetch: false,
         enableXfa: true
       });
       
       loadingTask.promise
-        .then(pdfDoc => {
+        .then((pdfDoc: PDFDocumentProxy) => {
           debugPDFViewer('PDF document loaded successfully', {
             numPages: pdfDoc.numPages
           });
@@ -179,7 +183,7 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
           // Render the initial page
           renderPage(initialPage);
         })
-        .catch(err => {
+        .catch((err: Error) => {
           console.error('Error loading PDF document:', err);
           debugPDFViewer('Error loading PDF', err.message || err);
           setError(`Failed to load PDF: ${err.message || 'Unknown error'}`);
@@ -211,7 +215,7 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
     }
     
     // Fetch the page
-    pdfDoc.getPage(pageNum).then((page: any) => {
+    pdfDoc.getPage(pageNum).then((page: PDFPageProxy) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       
@@ -244,7 +248,7 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
           width: scaledViewport.width,
           height: scaledViewport.height
         });
-      }).catch((err: any) => {
+      }).catch((err: Error) => {
         console.error('Error rendering page:', err);
         setPageRendering(false);
         setError(`Failed to render page ${pageNum}`);
