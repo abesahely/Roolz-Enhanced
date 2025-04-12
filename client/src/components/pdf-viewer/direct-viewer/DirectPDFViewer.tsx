@@ -261,6 +261,12 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
           width: scaledViewport.width,
           height: scaledViewport.height
         });
+        
+        // Notify parent when canvas is ready for annotations
+        if (onCanvasReady && canvas) {
+          debugPDFViewer('Notifying parent component that canvas is ready');
+          onCanvasReady(canvas);
+        }
       }).catch((err: Error) => {
         console.error('Error rendering page:', err);
         setPageRendering(false);
@@ -364,19 +370,34 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
             Next
           </button>
         </div>
-        <button 
-          onClick={onClose}
-          className="px-3 py-1 rounded text-white hover:bg-white/10"
-          aria-label="Close"
-        >
-          Close
-        </button>
+        <div className="flex space-x-2">
+          {onSaveWithAnnotations && (
+            <button
+              onClick={onSaveWithAnnotations}
+              className="px-3 py-1 rounded text-white bg-benext-orange hover:bg-benext-orange/90"
+              style={{ backgroundColor: BRAND_COLORS.ORANGE }}
+            >
+              Save Annotations
+            </button>
+          )}
+          <button 
+            onClick={onClose}
+            className="px-3 py-1 rounded text-white hover:bg-white/10"
+            aria-label="Close"
+          >
+            Close
+          </button>
+        </div>
       </div>
       
-      <div className="flex-1 overflow-auto bg-gray-100 p-4 flex justify-center">
+      <div 
+        id="pdf-wrapper" 
+        className="flex-1 overflow-auto bg-gray-100 p-4 flex justify-center pdf-container"
+      >
         <canvas 
           ref={canvasRef} 
           className="shadow-lg"
+          id="pdf-canvas"
         />
       </div>
     </div>
