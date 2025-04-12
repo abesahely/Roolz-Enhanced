@@ -186,22 +186,11 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
         setIsLoading(false);
       };
       
-      // Add timeout for large files
-      const timeoutId = setTimeout(() => {
-        if (isLoading) {
-          debugPDFViewer('File reading operation timed out');
-          setError('File processing took too long. The file may be too large or corrupted.');
-          setIsLoading(false);
-        }
-      }, 30000); // 30 second timeout
+      // We don't need a timeout since we handle loading states properly
+      // and the FileReader API already has error handling
       
       // Read the file as an ArrayBuffer
       reader.readAsArrayBuffer(file);
-      
-      // Return cleanup function
-      return () => {
-        clearTimeout(timeoutId);
-      };
     } catch (err) {
       console.error('Error processing PDF file:', err);
       debugPDFViewer('Error in file processing', err);
@@ -232,8 +221,16 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
           setNumPages(pdfDoc.numPages);
           setIsLoading(false);
           
-          // Render the initial page
-          renderPage(initialPage);
+          // Add a small delay before rendering the initial page
+          // This gives React time to update the DOM with components
+          // from the non-loading state before we attempt to render
+          setTimeout(() => {
+            // Force render the initial page
+            if (pdfDocRef.current && canvasRef.current) {
+              debugPDFViewer(`Rendering initial page ${initialPage}`);
+              renderPage(initialPage);
+            }
+          }, 50);
         })
         .catch((err: Error) => {
           console.error('Error loading PDF document:', err);
