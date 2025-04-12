@@ -21,8 +21,8 @@ if (typeof window !== 'undefined' && 'Worker' in window) {
     console.log(`Initializing PDF.js worker (version ${PDFJS_VERSION})`);
     
     // Create a direct path to the worker file
-    // This is more reliable than using CDN URLs or imports
-    const workerSrc = `/node_modules/pdfjs-dist/build/pdf.worker.min.js`;
+    // Using our publicly accessible worker file
+    const workerSrc = `/pdf.worker.js`;
     
     // Set worker source for both pdfjsLib and pdfjs from react-pdf 
     // This ensures both libraries use the same worker

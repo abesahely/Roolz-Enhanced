@@ -59,7 +59,7 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDocRef = useRef<any>(null);
 
-  // Generate blob URL when file changes
+  // Generate blob URL or ArrayBuffer when file changes
   useEffect(() => {
     if (!file) {
       debugPDFViewer('No file provided');
@@ -75,23 +75,46 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
         lastModified: new Date(file.lastModified).toISOString()
       });
       
-      // Create blob URL for the PDF
-      const blobUrl = URL.createObjectURL(file);
-      debugPDFViewer('Created blob URL', blobUrl);
-      setPdfUrl(blobUrl);
+      // Instead of using a blob URL, read the file as an ArrayBuffer
+      const reader = new FileReader();
       
+      reader.onload = function(e) {
+        if (e.target && e.target.result) {
+          // Create blob URL for the PDF from the ArrayBuffer
+          debugPDFViewer('File read successfully as ArrayBuffer');
+          const arrayBuffer = e.target.result;
+          const blob = new Blob([arrayBuffer as ArrayBuffer], { type: 'application/pdf' });
+          const blobUrl = URL.createObjectURL(blob);
+          
+          debugPDFViewer('Created blob URL from ArrayBuffer', blobUrl);
+          setPdfUrl(blobUrl);
+        }
+      };
+      
+      reader.onerror = function(e) {
+        console.error('Error reading file:', e);
+        debugPDFViewer('Error reading file', e);
+        setError('Failed to read PDF file. Please try again with a different file.');
+        setIsLoading(false);
+      };
+      
+      // Read the file as an ArrayBuffer
+      reader.readAsArrayBuffer(file);
+      
+      // Return cleanup function
       return () => {
-        // Clean up blob URL when component unmounts or changes
-        debugPDFViewer('Cleaning up blob URL', blobUrl);
-        URL.revokeObjectURL(blobUrl);
+        if (pdfUrl) {
+          debugPDFViewer('Cleaning up blob URL', pdfUrl);
+          URL.revokeObjectURL(pdfUrl);
+        }
       };
     } catch (err) {
-      console.error('Error creating blob URL for PDF:', err);
-      debugPDFViewer('Error in URL creation', err);
-      setError('Failed to load PDF. Please try again.');
+      console.error('Error processing PDF file:', err);
+      debugPDFViewer('Error in file processing', err);
+      setError('Failed to process PDF. Please try again with a different file.');
       setIsLoading(false);
     }
-  }, [file]);
+  }, [file, pdfUrl]);
   
   // Load PDF document when URL is available
   useEffect(() => {
@@ -100,27 +123,84 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
     debugPDFViewer('Loading PDF document from URL', pdfUrl);
     setIsLoading(true);
     
-    const loadingTask = pdfjs.getDocument(pdfUrl);
+    console.log('Ensuring worker is configured correctly');
+    console.log('Current worker path:', pdfjs.GlobalWorkerOptions.workerSrc);
     
-    loadingTask.promise
-      .then(pdfDoc => {
-        debugPDFViewer('PDF document loaded successfully', {
-          numPages: pdfDoc.numPages
+    // Set worker configuration - force override with static file
+    // This eliminates dependency on properly configured global worker
+    const workerSrc = '/pdf.worker.js';
+    debugPDFViewer('Explicitly setting worker source to:', workerSrc);
+    pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+    
+    // Try to use direct ArrayBuffer data loading instead of URL
+    // This often resolves issues with cross-origin restrictions
+    try {
+      fetch(pdfUrl)
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => {
+          // Load the document with explicit type safety and data buffer
+          debugPDFViewer('Got array buffer, loading PDF directly');
+          return pdfjs.getDocument({
+            data: arrayBuffer,
+            // Disable worker to use main thread if worker fails
+            useWorkerFetch: false,
+            // Add additional options for improved parsing
+            enableXfa: true
+          }).promise;
+        })
+        .then(pdfDoc => {
+          debugPDFViewer('PDF document loaded successfully', {
+            numPages: pdfDoc.numPages
+          });
+          
+          pdfDocRef.current = pdfDoc;
+          setNumPages(pdfDoc.numPages);
+          setIsLoading(false);
+          
+          // Render the initial page
+          renderPage(initialPage);
+        })
+        .catch(err => {
+          console.error('Error fetching/loading PDF:', err);
+          debugPDFViewer('Error fetching/loading PDF:', err.message || err);
+          
+          // Fall back to URL-based loading
+          debugPDFViewer('Falling back to URL-based loading');
+          fallbackToUrlLoading();
         });
-        
-        pdfDocRef.current = pdfDoc;
-        setNumPages(pdfDoc.numPages);
-        setIsLoading(false);
-        
-        // Render the initial page
-        renderPage(initialPage);
-      })
-      .catch(err => {
-        console.error('Error loading PDF document:', err);
-        debugPDFViewer('Error loading PDF', err);
-        setError('Failed to load PDF. Please try again.');
-        setIsLoading(false);
+    } catch (err) {
+      console.error('Error in fetch approach:', err);
+      fallbackToUrlLoading();
+    }
+    
+    // Fallback function for URL-based loading
+    function fallbackToUrlLoading() {
+      debugPDFViewer('Using URL-based loading fallback');
+      const loadingTask = pdfjs.getDocument({
+        url: pdfUrl,
+        useWorkerFetch: false
       });
+      
+      loadingTask.promise
+        .then(pdfDoc => {
+          debugPDFViewer('PDF document loaded successfully', {
+            numPages: pdfDoc.numPages
+          });
+          
+          pdfDocRef.current = pdfDoc;
+          setNumPages(pdfDoc.numPages);
+          setIsLoading(false);
+          
+          // Render the initial page
+          renderPage(initialPage);
+        })
+        .catch(err => {
+          console.error('Error loading PDF document:', err);
+          debugPDFViewer('Error loading PDF', err.message || err);
+          setError(`Failed to load PDF: ${err.message || 'Unknown error'}`);
+          setIsLoading(false);
+        });
+    }
       
     return () => {
       // Clean up PDF document when component unmounts or URL changes
