@@ -106,6 +106,29 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       }
     };
   }, []);
+  
+  // Handle window resize to re-render the current page with the correct scale
+  useEffect(() => {
+    // Only setup resize handler if we have a PDF document and current page
+    if (pdfDocRef.current && currentPage > 0) {
+      const handleResize = () => {
+        // Small debounce to avoid too many renders during resize
+        let resizeTimeout: ReturnType<typeof setTimeout>;
+        
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+          debugPDFViewer('Window resized, re-rendering current page');
+          renderPage(currentPage);
+        }, 100);
+      };
+      
+      window.addEventListener('resize', handleResize);
+      
+      return () => {
+        window.removeEventListener('resize', handleResize);
+      };
+    }
+  }, [currentPage, pdfDocRef.current]);
 
   // Step 1: Load the File as an ArrayBuffer and store it in a ref
   useEffect(() => {
@@ -284,8 +307,19 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       
       // Determine viewport dimensions to fit container
       const viewport = page.getViewport({ scale: 1.0 });
+      
+      // Calculate available width and height in the container
       const containerWidth = canvas.parentElement?.clientWidth || 800;
-      const scale = containerWidth / viewport.width;
+      const containerHeight = canvas.parentElement?.clientHeight || 600;
+      
+      // Determine scale to fit in the container (account for padding)
+      const horizontalScale = (containerWidth - 20) / viewport.width;
+      const verticalScale = (containerHeight - 20) / viewport.height;
+      
+      // Use the smaller scale to ensure PDF fits in both dimensions
+      // But don't scale down too much on mobile
+      const scale = Math.min(horizontalScale, verticalScale, 2.0);
+      
       const scaledViewport = page.getViewport({ scale });
       
       // Set canvas dimensions
@@ -404,16 +438,20 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   // Render PDF viewer with toolbar
   return (
     <div className={`pdf-viewer-container flex flex-col h-full w-full ${className}`}>
+      {/* Mobile-responsive toolbar */}
       <div 
-        className="pdf-viewer-toolbar flex items-center justify-between px-4 py-2"
+        className="pdf-viewer-toolbar flex flex-col sm:flex-row items-start sm:items-center justify-between px-4 py-2"
         style={{ backgroundColor: BRAND_COLORS.NAVY }}
       >
-        <div className="flex-1">
+        {/* Document title */}
+        <div className="flex-1 w-full sm:w-auto mb-2 sm:mb-0">
           <h3 className="text-white text-lg font-medium truncate">
             {file?.name || 'Document'}
           </h3>
         </div>
-        <div className="flex items-center space-x-2 mr-4">
+        
+        {/* Navigation controls - full width on mobile, normal on desktop */}
+        <div className="flex items-center justify-between w-full sm:w-auto sm:mr-4 mb-2 sm:mb-0">
           <button 
             onClick={goToPreviousPage}
             disabled={currentPage <= 1 || pageRendering}
@@ -421,7 +459,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
           >
             Previous
           </button>
-          <span className="text-white">
+          <span className="text-white mx-2">
             Page {currentPage} of {numPages}
           </span>
           <button 
@@ -432,19 +470,21 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
             Next
           </button>
         </div>
-        <div className="flex space-x-2">
+        
+        {/* Action buttons */}
+        <div className="flex justify-between w-full sm:w-auto sm:space-x-2">
           {onSaveWithAnnotations && (
             <button
               onClick={onSaveWithAnnotations}
-              className="px-3 py-1 rounded text-white bg-benext-orange hover:bg-benext-orange/90"
+              className="px-3 py-1 rounded text-white hover:bg-benext-orange/90"
               style={{ backgroundColor: BRAND_COLORS.ORANGE }}
             >
-              Save Annotations
+              Save
             </button>
           )}
           <button 
             onClick={onClose}
-            className="px-3 py-1 rounded text-white hover:bg-white/10"
+            className="px-3 py-1 rounded text-white hover:bg-white/10 ml-auto sm:ml-0"
             aria-label="Close"
           >
             Close
@@ -452,13 +492,14 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
         </div>
       </div>
       
+      {/* PDF canvas container - maximize the available space */}
       <div 
         id="pdf-wrapper" 
-        className="flex-1 overflow-auto bg-gray-100 p-4 flex justify-center pdf-container"
+        className="flex-1 overflow-auto bg-gray-100 p-2 md:p-4 flex justify-center pdf-container"
       >
         <canvas 
           ref={canvasRef} 
-          className="shadow-lg"
+          className="shadow-lg max-w-full"
           id="pdf-canvas"
         />
       </div>

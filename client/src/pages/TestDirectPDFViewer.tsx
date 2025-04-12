@@ -65,7 +65,7 @@ export default function TestDirectPDFViewer() {
       
       {file && (
         <div 
-          className="flex flex-col h-[80vh] border border-gray-300 rounded-lg overflow-hidden" 
+          className="flex flex-col h-[90vh] md:h-[85vh] border border-gray-300 rounded-lg overflow-hidden w-full" 
           style={{ display: viewerOpen ? 'flex' : 'none' }}
         >
           <DirectPDFViewer
