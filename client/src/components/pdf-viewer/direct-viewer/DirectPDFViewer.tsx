@@ -324,12 +324,26 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       const containerHeight = canvas.parentElement?.clientHeight || 600;
       
       // Determine scale to fit in the container (account for padding)
-      const horizontalScale = (containerWidth - 20) / viewport.width;
-      const verticalScale = (containerHeight - 20) / viewport.height;
+      const horizontalScale = (containerWidth - 40) / viewport.width;
+      const verticalScale = (containerHeight - 40) / viewport.height;
       
-      // Use the smaller scale to ensure PDF fits in both dimensions
-      // But don't scale down too much on mobile
-      const scale = Math.min(horizontalScale, verticalScale, 2.0);
+      // Calculate appropriate scale based on device width
+      let scale;
+      
+      // On wider screens (like desktops), prioritize using more width
+      if (window.innerWidth > 1024) {
+        // For larger screens, prefer horizontal scale with a max of 1.5
+        scale = Math.min(horizontalScale, Math.max(verticalScale, 1.0), 1.5);
+      } else if (window.innerWidth > 768) {
+        // For medium screens, balance both dimensions but still favor width
+        scale = Math.min(horizontalScale, verticalScale * 1.1, 1.2);
+      } else {
+        // For mobile, ensure it fits in both dimensions
+        scale = Math.min(horizontalScale, verticalScale, 1.0);
+      }
+      
+      // Enforce minimum scale to prevent tiny rendering
+      scale = Math.max(scale, 0.4);
       
       const scaledViewport = page.getViewport({ scale });
       
