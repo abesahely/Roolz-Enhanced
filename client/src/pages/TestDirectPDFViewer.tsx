@@ -13,9 +13,15 @@ export default function TestDirectPDFViewer() {
   const [file, setFile] = useState<File | null>(null);
   const [viewerOpen, setViewerOpen] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
-
+  const [viewerKey, setViewerKey] = useState<string>("initial");
+  
   // Handle file upload
   const handleFileUpload = (uploadedFile: File) => {
+    // Create a stable unique key for the viewer component based on the file
+    const newKey = `${uploadedFile.name}-${uploadedFile.size}-${uploadedFile.lastModified}`;
+    setViewerKey(newKey);
+    
+    // Set file and open viewer
     setFile(uploadedFile);
     setViewerOpen(true);
   };
@@ -47,19 +53,23 @@ export default function TestDirectPDFViewer() {
         </div>
       </div>
 
-      {!viewerOpen ? (
-        <div className="max-w-xl mx-auto">
-          <DragDropUpload
-            onFileUpload={handleFileUpload}
-            isUploading={false}
-          />
-          <div className="mt-4 text-center text-sm text-gray-500">
-            Accepted file types: PDF • Max file size: 10MB
-          </div>
+      <div className="max-w-xl mx-auto" style={{ display: viewerOpen ? 'none' : 'block' }}>
+        <DragDropUpload
+          onFileUpload={handleFileUpload}
+          isUploading={false}
+        />
+        <div className="mt-4 text-center text-sm text-gray-500">
+          Accepted file types: PDF • Max file size: 10MB
         </div>
-      ) : (
-        <div className="flex flex-col h-[80vh] border border-gray-300 rounded-lg overflow-hidden">
+      </div>
+      
+      {file && (
+        <div 
+          className="flex flex-col h-[80vh] border border-gray-300 rounded-lg overflow-hidden" 
+          style={{ display: viewerOpen ? 'flex' : 'none' }}
+        >
           <DirectPDFViewer
+            key={viewerKey} // Use the stable key to ensure proper component lifecycle
             file={file}
             onClose={handleClose}
             initialPage={currentPage}

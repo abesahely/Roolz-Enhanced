@@ -83,6 +83,8 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   const pdfArrayBufferRef = useRef<ArrayBuffer | null>(null);
   // Store the current render task to cancel it if needed
   const renderTaskRef = useRef<any>(null);
+  // Keep track of the file ID to prevent unnecessary reprocessing
+  const previousFileIdRef = useRef<string | null>(null);
   
   // Cleanup function for component unmount
   useEffect(() => {
@@ -112,6 +114,23 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       return;
     }
     
+    // Prevent reprocessing the same file unnecessarily
+    const fileId = `${file.name}-${file.size}-${file.lastModified}`;
+    
+    if (previousFileIdRef.current === fileId) {
+      debugPDFViewer('Same file detected, skipping reprocessing');
+      return;
+    }
+    
+    previousFileIdRef.current = fileId;
+    
+    debugPDFViewer('Processing new file', {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: new Date(file.lastModified).toISOString()
+    });
+    
     // Clear any existing document
     if (pdfDocRef.current) {
       pdfDocRef.current.destroy().catch((err: Error) => {
@@ -130,14 +149,6 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     setError(null);
     
     try {
-      // Log file information for debugging
-      debugPDFViewer('Processing new file', {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        lastModified: new Date(file.lastModified).toISOString()
-      });
-      
       // Validate file type
       if (file.type !== 'application/pdf') {
         setError(`Invalid file type: ${file.type || 'unknown'}. Please upload a PDF file.`);
@@ -197,7 +208,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       setError(`Failed to process PDF: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setIsLoading(false);
     }
-  }, [file, isLoading]); 
+  }, [file]); 
   
   // Function to load PDF from ArrayBuffer
   const loadPdfFromArrayBuffer = () => {
