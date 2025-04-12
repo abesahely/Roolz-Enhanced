@@ -75,19 +75,35 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
         lastModified: new Date(file.lastModified).toISOString()
       });
       
+      // Validate file type
+      if (file.type !== 'application/pdf') {
+        setError(`Invalid file type: ${file.type || 'unknown'}. Please upload a PDF file.`);
+        setIsLoading(false);
+        return;
+      }
+      
       // Instead of using a blob URL, read the file as an ArrayBuffer
       const reader = new FileReader();
       
       reader.onload = function(e) {
         if (e.target && e.target.result) {
-          // Create blob URL for the PDF from the ArrayBuffer
-          debugPDFViewer('File read successfully as ArrayBuffer');
-          const arrayBuffer = e.target.result;
-          const blob = new Blob([arrayBuffer as ArrayBuffer], { type: 'application/pdf' });
-          const blobUrl = URL.createObjectURL(blob);
-          
-          debugPDFViewer('Created blob URL from ArrayBuffer', blobUrl);
-          setPdfUrl(blobUrl);
+          try {
+            // Create blob URL for the PDF from the ArrayBuffer
+            debugPDFViewer('File read successfully as ArrayBuffer');
+            const arrayBuffer = e.target.result;
+            const blob = new Blob([arrayBuffer as ArrayBuffer], { type: 'application/pdf' });
+            const blobUrl = URL.createObjectURL(blob);
+            
+            debugPDFViewer('Created blob URL from ArrayBuffer', blobUrl);
+            setPdfUrl(blobUrl);
+          } catch (blobErr) {
+            console.error('Error creating blob from ArrayBuffer:', blobErr);
+            setError(`Error preparing PDF: ${blobErr instanceof Error ? blobErr.message : 'Unknown error'}`);
+            setIsLoading(false);
+          }
+        } else {
+          setError('Failed to read file content. The file may be corrupted.');
+          setIsLoading(false);
         }
       };
       
@@ -98,11 +114,21 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
         setIsLoading(false);
       };
       
+      // Add timeout for large files
+      const timeoutId = setTimeout(() => {
+        if (isLoading) {
+          debugPDFViewer('File reading operation timed out');
+          setError('File processing took too long. The file may be too large or corrupted.');
+          setIsLoading(false);
+        }
+      }, 30000); // 30 second timeout
+      
       // Read the file as an ArrayBuffer
       reader.readAsArrayBuffer(file);
       
       // Return cleanup function
       return () => {
+        clearTimeout(timeoutId);
         if (pdfUrl) {
           debugPDFViewer('Cleaning up blob URL', pdfUrl);
           URL.revokeObjectURL(pdfUrl);
@@ -111,10 +137,10 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
     } catch (err) {
       console.error('Error processing PDF file:', err);
       debugPDFViewer('Error in file processing', err);
-      setError('Failed to process PDF. Please try again with a different file.');
+      setError(`Failed to process PDF: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setIsLoading(false);
     }
-  }, [file, pdfUrl]);
+  }, [file, pdfUrl, isLoading]);
   
   // Load PDF document when URL is available
   useEffect(() => {
@@ -131,6 +157,60 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
     const workerSrc = '/pdf.worker.js';
     debugPDFViewer('Explicitly setting worker source to:', workerSrc);
     pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+    
+    // Create cleanup function for effect
+    const cleanup = () => {
+      // Clean up PDF document when component unmounts or URL changes
+      if (pdfDocRef.current) {
+        debugPDFViewer('Cleaning up PDF document');
+        pdfDocRef.current.destroy();
+        pdfDocRef.current = null;
+      }
+    };
+    
+    // Fallback function for URL-based loading
+    const fallbackToUrlLoading = () => {
+      // Only proceed if pdfUrl is still valid
+      if (!pdfUrl) {
+        setError('PDF URL is no longer valid');
+        setIsLoading(false);
+        return;
+      }
+      
+      debugPDFViewer('Using URL-based loading fallback');
+      try {
+        // Type assertion to ensure pdfUrl is treated as string
+        const url = pdfUrl as string;
+        const loadingTask = pdfjs.getDocument({
+          url,
+          useWorkerFetch: false
+        });
+        
+        loadingTask.promise
+          .then(pdfDoc => {
+            debugPDFViewer('PDF document loaded successfully via fallback', {
+              numPages: pdfDoc.numPages
+            });
+            
+            pdfDocRef.current = pdfDoc;
+            setNumPages(pdfDoc.numPages);
+            setIsLoading(false);
+            
+            // Render the initial page
+            renderPage(initialPage);
+          })
+          .catch(err => {
+            console.error('Error loading PDF document (fallback):', err);
+            debugPDFViewer('Error loading PDF (fallback)', err.message || err);
+            setError(`Failed to load PDF: ${err.message || 'Unknown error'}`);
+            setIsLoading(false);
+          });
+      } catch (err) {
+        console.error('Error in fallback loading:', err);
+        setError(`Failed to initialize PDF loading: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        setIsLoading(false);
+      }
+    };
     
     // Try to use direct ArrayBuffer data loading instead of URL
     // This often resolves issues with cross-origin restrictions
@@ -173,43 +253,8 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
       fallbackToUrlLoading();
     }
     
-    // Fallback function for URL-based loading
-    function fallbackToUrlLoading() {
-      debugPDFViewer('Using URL-based loading fallback');
-      const loadingTask = pdfjs.getDocument({
-        url: pdfUrl,
-        useWorkerFetch: false
-      });
-      
-      loadingTask.promise
-        .then(pdfDoc => {
-          debugPDFViewer('PDF document loaded successfully', {
-            numPages: pdfDoc.numPages
-          });
-          
-          pdfDocRef.current = pdfDoc;
-          setNumPages(pdfDoc.numPages);
-          setIsLoading(false);
-          
-          // Render the initial page
-          renderPage(initialPage);
-        })
-        .catch(err => {
-          console.error('Error loading PDF document:', err);
-          debugPDFViewer('Error loading PDF', err.message || err);
-          setError(`Failed to load PDF: ${err.message || 'Unknown error'}`);
-          setIsLoading(false);
-        });
-    }
-      
-    return () => {
-      // Clean up PDF document when component unmounts or URL changes
-      if (pdfDocRef.current) {
-        debugPDFViewer('Cleaning up PDF document');
-        pdfDocRef.current.destroy();
-        pdfDocRef.current = null;
-      }
-    };
+    // Return cleanup function
+    return cleanup;
   }, [pdfUrl, initialPage]);
   
   // Function to render a specific page
