@@ -7,6 +7,7 @@ import Home from "@/pages/Home";
 import View from "@/pages/View";
 import TestPDFViewer from "@/pages/TestPDFViewer";
 import TestIframePDFViewer from "@/pages/TestIframePDFViewer";
+import TestDirectPDFViewer from "@/pages/TestDirectPDFViewer";
 
 const Router: React.FC = () => (
   <Switch>
@@ -14,6 +15,7 @@ const Router: React.FC = () => (
     <Route path="/view" component={View} />
     <Route path="/test-pdf" component={TestPDFViewer} />
     <Route path="/test-iframe-pdf" component={TestIframePDFViewer} />
+    <Route path="/test-direct-pdf" component={TestDirectPDFViewer} />
     <Route component={NotFound} />
   </Switch>
 );

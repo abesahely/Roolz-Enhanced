@@ -36,6 +36,11 @@ const Home: React.FC = () => {
                 Test Iframe PDF Viewer
               </Button>
             </Link>
+            <Link href="/test-direct-pdf">
+              <Button variant="outline" className="border-benext-orange text-benext-orange hover:bg-benext-orange hover:text-white">
+                Test Direct PDF Viewer
+              </Button>
+            </Link>
           </div>
         </div>
         <DragDropUpload

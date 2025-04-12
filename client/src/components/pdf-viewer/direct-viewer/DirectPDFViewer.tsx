@@ -5,23 +5,11 @@ import { BRAND_COLORS } from '@/lib/constants';
 // This ensures we're using the version that's actually installed (3.11.174)
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 
-// Type definitions for PDFjs
-interface PDFPageProxy {
-  getViewport: (options: { scale: number }) => PDFViewport;
-  render: (options: {
-    canvasContext: CanvasRenderingContext2D;
-    viewport: PDFViewport;
-  }) => { promise: Promise<void> };
-}
-
-interface PDFViewport {
-  width: number;
-  height: number;
-}
-
-interface PDFDocumentProxy {
+// For TypeScript, we'll use 'any' types to avoid type conflicts
+// The specific PDF.js types can cause issues with different versions
+interface SimplePDFDocumentProxy {
   numPages: number;
-  getPage: (pageNumber: number) => Promise<PDFPageProxy>;
+  getPage: (pageNumber: number) => Promise<any>;
   destroy: () => Promise<void>;
 }
 
@@ -79,7 +67,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [pageRendering, setPageRendering] = useState<boolean>(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const pdfDocRef = useRef<PDFDocumentProxy | null>(null);
+  const pdfDocRef = useRef<any>(null);
   const pdfArrayBufferRef = useRef<ArrayBuffer | null>(null);
   
   // Step 1: Load the File as an ArrayBuffer and store it in a ref
@@ -91,7 +79,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     
     // Clear any existing document
     if (pdfDocRef.current) {
-      pdfDocRef.current.destroy().catch(err => {
+      pdfDocRef.current.destroy().catch((err: Error) => {
         console.error("Error destroying PDF:", err);
       });
       pdfDocRef.current = null;
@@ -183,7 +171,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     try {
       // Load the document directly from the array buffer
       pdfjsLib.getDocument({ data: pdfArrayBufferRef.current }).promise
-        .then((pdfDoc: PDFDocumentProxy) => {
+        .then((pdfDoc: any) => {
           debugPDFViewer('PDF document loaded successfully', {
             numPages: pdfDoc.numPages
           });
@@ -228,7 +216,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     }
     
     // Fetch the page
-    pdfDoc.getPage(pageNum).then((page: PDFPageProxy) => {
+    pdfDoc.getPage(pageNum).then((page: any) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       
