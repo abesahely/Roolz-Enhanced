@@ -72,10 +72,11 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
       debugPDFViewer('Created blob URL', blobUrl);
       
       // Construct viewer URL with parameters - using our self-hosted viewer
+      // Add explicit workerVersion parameter to tell the viewer what worker version to expect
       const baseViewerUrl = '/pdf-viewer/web/viewer.html';
-      const viewerWithParams = `${baseViewerUrl}?file=${encodeURIComponent(blobUrl)}&base=${encodeURIComponent(window.location.origin)}&debug=true#page=${initialPage}`;
+      const viewerWithParams = `${baseViewerUrl}?file=${encodeURIComponent(blobUrl)}&base=${encodeURIComponent(window.location.origin)}&workerVersion=3.11.174&debug=true#page=${initialPage}`;
       
-      debugPDFViewer('Constructed viewer URL', viewerWithParams);
+      debugPDFViewer('Constructed viewer URL with worker version hint', viewerWithParams);
       setViewerUrl(viewerWithParams);
       setIsLoading(false);
       
