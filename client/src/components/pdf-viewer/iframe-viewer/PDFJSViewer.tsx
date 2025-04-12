@@ -66,6 +66,9 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
       return;
     }
     
+    // Track URLs to clean up
+    let currentBlobUrl: string | null = null;
+    
     try {
       // Log file information for debugging
       debugPDFViewer('Processing file', {
@@ -92,9 +95,19 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
             debugPDFViewer('File read successfully as ArrayBuffer');
             const arrayBuffer = e.target.result;
             const blob = new Blob([arrayBuffer as ArrayBuffer], { type: 'application/pdf' });
-            const blobUrl = URL.createObjectURL(blob);
             
-            debugPDFViewer('Created blob URL from ArrayBuffer', blobUrl);
+            // Clean up any previous URL first
+            if (pdfUrl) {
+              debugPDFViewer('Cleaning up existing URL before creating new one', pdfUrl);
+              URL.revokeObjectURL(pdfUrl);
+            }
+            
+            // Create new URL
+            const blobUrl = URL.createObjectURL(blob);
+            debugPDFViewer('Created new blob URL from ArrayBuffer', blobUrl);
+            currentBlobUrl = blobUrl;
+            
+            // Set the URL state
             setPdfUrl(blobUrl);
           } catch (blobErr) {
             console.error('Error creating blob from ArrayBuffer:', blobErr);
@@ -129,9 +142,9 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
       // Return cleanup function
       return () => {
         clearTimeout(timeoutId);
-        if (pdfUrl) {
-          debugPDFViewer('Cleaning up blob URL', pdfUrl);
-          URL.revokeObjectURL(pdfUrl);
+        if (currentBlobUrl) {
+          debugPDFViewer('Cleaning up blob URL on unmount', currentBlobUrl);
+          URL.revokeObjectURL(currentBlobUrl);
         }
       };
     } catch (err) {
@@ -140,7 +153,7 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
       setError(`Failed to process PDF: ${err instanceof Error ? err.message : 'Unknown error'}`);
       setIsLoading(false);
     }
-  }, [file, pdfUrl, isLoading]);
+  }, [file, pdfUrl]);
   
   // Load PDF document when URL is available
   useEffect(() => {
