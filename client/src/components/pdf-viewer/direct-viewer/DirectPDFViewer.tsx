@@ -107,16 +107,27 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     };
   }, []);
   
-  // Simple resize handler that calls renderPage when window is resized
+  // Handle window resize to re-render the current page with the correct scale
   useEffect(() => {
-    // Skip if no PDF doc or current page not set
     if (!pdfDocRef.current || currentPage <= 0) return;
     
-    // Create a debounced resize handler
-    const handleResize = debounce(() => {
-      debugPDFViewer('Window resized, re-rendering current page');
-      renderPage(currentPage);
-    }, 100);
+    // Debounced resize handler function
+    const resizeTimeoutRef = {current: null as number | null};
+    
+    const handleResize = () => {
+      // Cancel previous timeout if it exists
+      if (resizeTimeoutRef.current !== null) {
+        window.clearTimeout(resizeTimeoutRef.current);
+      }
+      
+      // Set new timeout
+      resizeTimeoutRef.current = window.setTimeout(() => {
+        debugPDFViewer('Window resized, re-rendering current page');
+        if (currentPage > 0) {
+          renderPage(currentPage);
+        }
+      }, 100);
+    };
     
     // Add event listener
     window.addEventListener('resize', handleResize);
@@ -124,35 +135,11 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     // Clean up
     return () => {
       window.removeEventListener('resize', handleResize);
-      handleResize.cancel();
-    };
-  }, [currentPage, renderPage]);
-  
-  // Debounce utility function
-  function debounce<T extends (...args: any[]) => any>(
-    func: T,
-    wait: number
-  ): T & { cancel: () => void } {
-    let timeout: ReturnType<typeof setTimeout> | null = null;
-    
-    const debounced = (...args: Parameters<T>) => {
-      if (timeout !== null) {
-        clearTimeout(timeout);
-      }
-      timeout = setTimeout(() => {
-        func(...args);
-      }, wait);
-    };
-    
-    debounced.cancel = () => {
-      if (timeout !== null) {
-        clearTimeout(timeout);
-        timeout = null;
+      if (resizeTimeoutRef.current !== null) {
+        window.clearTimeout(resizeTimeoutRef.current);
       }
     };
-    
-    return debounced as T & { cancel: () => void };
-  }
+  }, [currentPage]);
 
   // Step 1: Load the File as an ArrayBuffer and store it in a ref
   useEffect(() => {
