@@ -17,6 +17,7 @@ interface PDFViewerToggleProps {
   initialPage?: number;
   onPageChange?: (pageNumber: number) => void;
   onSaveWithAnnotations?: () => void;
+  onCanvasReady?: (canvas: HTMLCanvasElement) => void;
   // Toggle options
   forceNew?: boolean;
   forceIframe?: boolean;
@@ -42,6 +43,7 @@ const PDFViewerToggle: React.FC<PDFViewerToggleProps> = ({
   initialPage = 1,
   onPageChange,
   onSaveWithAnnotations,
+  onCanvasReady,
   forceNew = false,
   forceIframe = false,
   forceDirect = false
@@ -59,6 +61,8 @@ const PDFViewerToggle: React.FC<PDFViewerToggleProps> = ({
       onClose={onClose}
       initialPage={initialPage}
       onPageChange={onPageChange}
+      onCanvasReady={onCanvasReady}
+      onSaveWithAnnotations={onSaveWithAnnotations}
       className="h-full w-full"
     />
   );

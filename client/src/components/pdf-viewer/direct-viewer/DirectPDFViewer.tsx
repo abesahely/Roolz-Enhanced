@@ -43,6 +43,16 @@ interface DirectPDFViewerProps {
   onPageChange?: (pageNumber: number) => void;
   
   /**
+   * Optional canvas ready handler for annotation support
+   */
+  onCanvasReady?: (canvas: HTMLCanvasElement) => void;
+  
+  /**
+   * Optional handler for saving annotations
+   */
+  onSaveWithAnnotations?: () => void;
+  
+  /**
    * Additional class name for the container
    */
   className?: string;
@@ -59,6 +69,8 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   onClose,
   initialPage = 1,
   onPageChange,
+  onCanvasReady,
+  onSaveWithAnnotations,
   className = ''
 }) => {
   const [currentPage, setCurrentPage] = useState<number>(initialPage);
