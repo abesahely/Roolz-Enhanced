@@ -4,9 +4,9 @@
 This document tracks the migration from our custom PDF viewer implementation to a more stable architecture. After facing challenges with React-PDF integration in the Replit environment, we are pivoting to using the PDF.js pre-built viewer component for improved reliability and compatibility.
 
 ## Current Status
-**Phase:** Phase 2: PDF.js Viewer Implementation - Debugging  
-**Last Updated:** April 11, 2025  
-**Completion:** 40% (Implemented self-hosted PDF.js viewer with partial functionality)
+**Phase:** Phase 2: Direct PDF.js Implementation - Complete  
+**Last Updated:** April 12, 2025  
+**Completion:** 60% (Successfully implemented DirectPDFViewer with native PDF.js, bypassing react-pdf)
 
 ## Migration Checklist
 
@@ -228,82 +228,182 @@ pdf-viewer/ (Module directory)
 4. **Platform Detection**: Apply iOS-specific fixes for Safari
 5. **Loading Indicators**: Provide clear visual feedback for all operations
 
-### Strategic Pivot: PDF.js Pre-built Viewer Implementation
+### Direct Implementation Strategy: Native PDF.js Integration
 
-After facing significant challenges with React-PDF integration in the Replit environment, we're pivoting to a more reliable solution using the PDF.js pre-built viewer. This approach offers several advantages:
+After facing significant challenges with both React-PDF and the iframe-based PDF.js pre-built viewer in the Replit environment, we've successfully implemented a direct PDF.js integration approach called DirectPDFViewer. This approach offers several advantages:
 
-1. **Reliability**: The pre-built viewer is extensively tested and works across various environments
-2. **Completeness**: Includes all necessary features like annotations, navigation, and mobile support
-3. **Compatibility**: Confirmed to work in restricted environments like Replit
-4. **Maintenance**: Maintained by Mozilla with regular updates and broad community support
+1. **Simplified Architecture**: Directly uses PDF.js library without any intermediate wrappers like react-pdf
+2. **Version Consistency**: Avoids version conflicts by using the project's installed PDF.js version (3.11.174)
+3. **Zero Dependencies**: No additional packages required, reducing potential points of failure
+4. **Direct Canvas Control**: Full control over the rendering process without React abstractions
+5. **Better Performance**: No overhead from unnecessary framework layers
+6. **Complete Ownership**: Full control over UI/UX without relying on pre-built components
 
-#### New Implementation Approach
+#### Direct PDF.js Implementation Approach
 
-The PDF.js pre-built viewer will be integrated through iframes with proper customization for beNext.io branding. This approach requires less code and avoids the worker communication issues we've encountered.
+The DirectPDFViewer implementation directly uses PDF.js with a custom React component, avoiding unnecessary abstractions and third-party wrappers. This approach gives us full control over rendering, styling, and interactivity.
 
-1. **Base Implementation**
+1. **DirectPDFViewer Implementation**
    ```tsx
-   // PDFViewerComponent.tsx
-   interface PDFJSViewerProps {
+   // DirectPDFViewer.tsx
+   interface DirectPDFViewerProps {
      file: File | null;
      onClose: () => void;
      initialPage?: number;
+     onPageChange?: (pageNumber: number) => void;
      className?: string;
    }
    
-   const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
+   const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
      file,
      onClose,
      initialPage = 1,
+     onPageChange,
      className = ''
    }) => {
-     const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+     const [currentPage, setCurrentPage] = useState<number>(initialPage);
+     const [numPages, setNumPages] = useState<number>(0);
+     const [isLoading, setIsLoading] = useState<boolean>(true);
+     const [error, setError] = useState<string | null>(null);
+     const [pageRendering, setPageRendering] = useState<boolean>(false);
+     const canvasRef = useRef<HTMLCanvasElement>(null);
+     const pdfDocRef = useRef<any>(null);
+     const pdfArrayBufferRef = useRef<ArrayBuffer | null>(null);
      
-     // Generate viewer URL when file changes
+     // Step 1: Load the File as an ArrayBuffer and store it in a ref
      useEffect(() => {
        if (!file) return;
        
-       // Create blob URL for the PDF
-       const blobUrl = URL.createObjectURL(file);
+       // Clear any existing document
+       if (pdfDocRef.current) {
+         pdfDocRef.current.destroy().catch((err: Error) => {
+           console.error("Error destroying PDF:", err);
+         });
+         pdfDocRef.current = null;
+       }
        
-       // Construct viewer URL with parameters
-       const baseViewerUrl = 'https://mozilla.github.io/pdf.js/web/viewer.html';
-       const viewerWithParams = `${baseViewerUrl}?file=${encodeURIComponent(blobUrl)}#page=${initialPage}`;
+       setIsLoading(true);
+       setError(null);
        
-       setViewerUrl(viewerWithParams);
-       
-       return () => {
-         // Clean up blob URL when component unmounts
-         URL.revokeObjectURL(blobUrl);
-       };
-     }, [file, initialPage]);
+       try {
+         // Read the file as an ArrayBuffer
+         const reader = new FileReader();
+         
+         reader.onload = function(e) {
+           if (e.target && e.target.result) {
+             pdfArrayBufferRef.current = e.target.result as ArrayBuffer;
+             loadPdfFromArrayBuffer();
+           }
+         };
+         
+         reader.readAsArrayBuffer(file);
+       } catch (err) {
+         setError(`Failed to process PDF: ${err instanceof Error ? err.message : 'Unknown error'}`);
+         setIsLoading(false);
+       }
+     }, [file]);
      
-     // Render loading state if URL isn't ready
-     if (!viewerUrl) {
+     // Step 2: Load PDF from ArrayBuffer
+     const loadPdfFromArrayBuffer = () => {
+       if (!pdfArrayBufferRef.current) return;
+       
+       try {
+         pdfjsLib.getDocument({ data: pdfArrayBufferRef.current }).promise
+           .then((pdfDoc: any) => {
+             pdfDocRef.current = pdfDoc;
+             setNumPages(pdfDoc.numPages);
+             setIsLoading(false);
+             renderPage(initialPage);
+           })
+           .catch((err: Error) => {
+             setError(`Failed to load PDF: ${err.message}`);
+             setIsLoading(false);
+           });
+       } catch (err) {
+         setError(`Failed to initialize PDF: ${err instanceof Error ? err.message : 'Unknown error'}`);
+         setIsLoading(false);
+       }
+     };
+     
+     // Step 3: Render a specific page
+     const renderPage = (pageNum: number) => {
+       if (!pdfDocRef.current || !canvasRef.current) return;
+       
+       setPageRendering(true);
+       setCurrentPage(pageNum);
+       if (onPageChange) onPageChange(pageNum);
+       
+       pdfDocRef.current.getPage(pageNum).then((page: any) => {
+         const canvas = canvasRef.current;
+         if (!canvas) return;
+         
+         const context = canvas.getContext('2d');
+         if (!context) return;
+         
+         // Calculate optimal scale based on container width
+         const viewport = page.getViewport({ scale: 1.0 });
+         const containerWidth = canvas.parentElement?.clientWidth || 800;
+         const scale = containerWidth / viewport.width;
+         const scaledViewport = page.getViewport({ scale });
+         
+         // Set canvas dimensions
+         canvas.height = scaledViewport.height;
+         canvas.width = scaledViewport.width;
+         
+         // Render the page
+         const renderContext = {
+           canvasContext: context,
+           viewport: scaledViewport
+         };
+         
+         page.render(renderContext).promise.then(() => {
+           setPageRendering(false);
+         });
+       });
+     };
+     
+     // Navigation controls
+     const goToPreviousPage = () => {
+       if (currentPage > 1 && !pageRendering) {
+         renderPage(currentPage - 1);
+       }
+     };
+     
+     const goToNextPage = () => {
+       if (currentPage < numPages && !pageRendering) {
+         renderPage(currentPage + 1);
+       }
+     };
+     
+     // UI Rendering (loading, error, and viewer states)
+     if (isLoading) {
        return <div className="loading">Loading PDF viewer...</div>;
+     }
+     
+     if (error) {
+       return <div className="error">{error}</div>;
      }
      
      return (
        <div className={`pdf-viewer-container ${className}`}>
-         <div className="pdf-viewer-toolbar">
-           <button 
-             onClick={onClose}
-             className="close-button"
-           >
-             Close
-           </button>
+         <div 
+           className="pdf-viewer-toolbar"
+           style={{ backgroundColor: BRAND_COLORS.NAVY }}
+         >
+           <div className="file-info">
+             <h3 className="text-white">{file?.name || 'Document'}</h3>
+           </div>
+           <div className="navigation">
+             <button onClick={goToPreviousPage} disabled={currentPage <= 1}>Previous</button>
+             <span className="text-white">Page {currentPage} of {numPages}</span>
+             <button onClick={goToNextPage} disabled={currentPage >= numPages}>Next</button>
+           </div>
+           <button onClick={onClose}>Close</button>
          </div>
          
-         <iframe
-           src={viewerUrl}
-           title="PDF Viewer"
-           className="pdf-viewer-iframe"
-           style={{
-             border: 'none',
-             width: '100%',
-             height: 'calc(100% - 40px)', // Account for toolbar
-           }}
-         />
+         <div className="canvas-container">
+           <canvas ref={canvasRef} className="pdf-canvas" />
+         </div>
        </div>
      );
    };
