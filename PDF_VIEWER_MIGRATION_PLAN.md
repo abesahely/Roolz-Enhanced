@@ -784,7 +784,7 @@ Now that we've successfully implemented the DirectPDFViewer approach, we need a 
    - Create clear usage guidelines for DirectPDFViewer
    - Archive this migration plan document
 
-### Phase 4: Performance Optimization (1-2 days)
+### Phase 4: Performance Optimization and Architecture Enhancements (2-3 days)
 
 1. **Memory Management Enhancement:**
    - Implement improved cleanup for PDF documents
@@ -797,7 +797,19 @@ Now that we've successfully implemented the DirectPDFViewer approach, we need a 
    - Implement mobile-specific layout adjustments
    - Fix any remaining mobile rendering issues
 
-3. **Final QA:**
+3. **Architectural Improvements for New Features:**
+   - Follow the component structure from our future architecture plan
+   - Implement new features as modular, separated components
+   - Add utility functions in a dedicated utils directory
+   - Create custom hooks for new functionality
+   - Avoid expanding the monolithic component structure
+
+4. **Text Selection and Keyboard Navigation:**
+   - Implement text selection using the architectural approach
+   - Add keyboard navigation shortcuts in a maintainable pattern
+   - Create dedicated keyboard event handlers in a separate utility
+
+5. **Final QA:**
    - Test with various PDF types and sizes
    - Verify proper error handling
    - Check performance on low-end devices
@@ -828,3 +840,57 @@ Each PR related to this migration should:
 2. Update this document with progress
 3. Include thorough testing documentation
 4. Use the tag `pdf-migration` in commit messages
+
+## Future Architecture Refactoring Plan
+
+Once the base capabilities are in place and all redundant components are removed, we'll implement the following improved architecture to enhance maintainability and modularity. New features should follow these patterns when possible, without expanding the monolithic components.
+
+### Component Structure Enhancements
+
+#### 1. Directory Structure
+```
+client/src/components/pdf-viewer/
+├── components/
+│   ├── toolbar/
+│   │   ├── PDFToolbar.tsx
+│   │   ├── NavigationControls.tsx
+│   │   └── ZoomControls.tsx
+│   └── viewer/
+│       ├── PDFCanvas.tsx
+│       └── PDFErrorState.tsx
+├── hooks/
+│   ├── usePDFDocument.ts
+│   ├── useCanvasRendering.ts
+│   └── useZoomControls.ts
+├── utils/
+│   ├── constants.ts
+│   ├── pdfWorker.ts
+│   └── scaleCalculator.ts
+└── DirectPDFViewer.tsx (refactored to use the new components)
+```
+
+#### 2. Utility Layer
+- Create dedicated utilities for worker management, scale calculations, and constants
+- Establish clear separation between PDF.js configuration and application logic
+- Centralize error handling patterns and common calculations
+
+#### 3. Hooks Layer
+- Extract core PDF functionality into dedicated hooks:
+  - `usePDFDocument` - PDF document lifecycle management
+  - `useCanvasRendering` - Canvas rendering and scaling
+  - `useZoomControls` - Zoom mode and scale management
+- Ensure clean separation of concerns with single-responsibility principle
+
+#### 4. Component Layer
+- Break down monolithic components into focused, single-responsibility components
+- Create composable UI elements for toolbar, navigation, zoom controls
+- Implement consistent error states and loading indicators
+
+### Implementation Benefits
+1. Improved testability through smaller, focused components
+2. Enhanced maintainability with clear separation of concerns
+3. Better code reuse across different PDF viewing contexts
+4. Easier onboarding for new developers
+5. More straightforward bug fixing with isolated components
+
+This architectural approach will be applied to new features immediately while planning for a comprehensive refactoring once the base functionality is stable.
