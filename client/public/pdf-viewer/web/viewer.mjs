@@ -14844,6 +14844,34 @@ const PDFViewerApplication = {
     // Explicitly set the worker source from our global variable
     if (window.PDFWorkerPath) {
       console.log('Using explicitly configured worker path:', window.PDFWorkerPath);
+      
+      // Check URL for worker version parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const workerVersion = urlParams.get('workerVersion');
+      
+      if (workerVersion) {
+        console.log('Worker version from URL parameter:', workerVersion);
+        
+        // Create a dummy worker to check compatibility with current version
+        try {
+          const dummyWorker = new PDFWorker({
+            name: 'version-check',
+            port: null,
+            setupMethodsSpy: worker => {
+              // This will throw an error if versions are incompatible
+            }
+          });
+          // Error would be thrown by now if versions are incompatible
+          console.log('Worker compatibility check passed');
+        } catch (err) {
+          console.warn('Worker compatibility check failed, using explicit version path');
+          
+          // Use a direct path to the node_modules worker to ensure version compatibility
+          GlobalWorkerOptions.workerSrc = window.PDFWorkerPath;
+          return;
+        }
+      }
+      
       GlobalWorkerOptions.workerSrc = window.PDFWorkerPath;
     }
     

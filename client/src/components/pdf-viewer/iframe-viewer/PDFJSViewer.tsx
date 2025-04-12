@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BRAND_COLORS } from '@/lib/constants';
+import { pdfjs } from 'react-pdf';
 
 // Debug logger for PDF viewer issues
 const debugPDFViewer = (message: string, data?: any) => {
   console.log(`[PDFViewer Debug] ${message}`, data || '');
 };
+
+// Set worker path for PDF.js
+pdfjs.GlobalWorkerOptions.workerSrc = '/node_modules/pdfjs-dist/build/pdf.worker.min.js';
 
 interface PDFJSViewerProps {
   /**
@@ -36,8 +40,8 @@ interface PDFJSViewerProps {
 /**
  * PDFJSViewer component
  * 
- * Uses the PDF.js pre-built viewer in an iframe to display PDFs with
- * beNext.io styling. The viewer is loaded from the official Mozilla CDN.
+ * A simple React-based PDF viewer using the installed pdfjs-dist version.
+ * This approach avoids version mismatches between viewer and worker.
  */
 export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
   file,
@@ -46,12 +50,16 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
   onPageChange,
   className = ''
 }) => {
-  const [viewerUrl, setViewerUrl] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState<number>(initialPage);
+  const [numPages, setNumPages] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pageRendering, setPageRendering] = useState<boolean>(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pdfDocRef = useRef<any>(null);
 
-  // Generate viewer URL when file changes
+  // Generate blob URL when file changes
   useEffect(() => {
     if (!file) {
       debugPDFViewer('No file provided');
@@ -70,15 +78,7 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
       // Create blob URL for the PDF
       const blobUrl = URL.createObjectURL(file);
       debugPDFViewer('Created blob URL', blobUrl);
-      
-      // Construct viewer URL with parameters - using our self-hosted viewer
-      // Add explicit workerVersion parameter to tell the viewer what worker version to expect
-      const baseViewerUrl = '/pdf-viewer/web/viewer.html';
-      const viewerWithParams = `${baseViewerUrl}?file=${encodeURIComponent(blobUrl)}&base=${encodeURIComponent(window.location.origin)}&workerVersion=3.11.174&debug=true#page=${initialPage}`;
-      
-      debugPDFViewer('Constructed viewer URL with worker version hint', viewerWithParams);
-      setViewerUrl(viewerWithParams);
-      setIsLoading(false);
+      setPdfUrl(blobUrl);
       
       return () => {
         // Clean up blob URL when component unmounts or changes
@@ -91,71 +91,119 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
       setError('Failed to load PDF. Please try again.');
       setIsLoading(false);
     }
-  }, [file, initialPage]);
+  }, [file]);
   
-  // Set up message listener for iframe communication
+  // Load PDF document when URL is available
   useEffect(() => {
-    if (!viewerUrl) return;
+    if (!pdfUrl) return;
     
-    debugPDFViewer('Setting up message listener for iframe communication');
+    debugPDFViewer('Loading PDF document from URL', pdfUrl);
+    setIsLoading(true);
     
-    const handleMessage = (event: MessageEvent) => {
-      // Log all received messages for debugging
-      debugPDFViewer('Received message event', {
-        origin: event.origin,
-        expectedOrigin: window.location.origin,
-        data: event.data,
-        source: event.source ? 'Available' : 'Not available'
+    const loadingTask = pdfjs.getDocument(pdfUrl);
+    
+    loadingTask.promise
+      .then(pdfDoc => {
+        debugPDFViewer('PDF document loaded successfully', {
+          numPages: pdfDoc.numPages
+        });
+        
+        pdfDocRef.current = pdfDoc;
+        setNumPages(pdfDoc.numPages);
+        setIsLoading(false);
+        
+        // Render the initial page
+        renderPage(initialPage);
+      })
+      .catch(err => {
+        console.error('Error loading PDF document:', err);
+        debugPDFViewer('Error loading PDF', err);
+        setError('Failed to load PDF. Please try again.');
+        setIsLoading(false);
       });
       
-      // Accept messages from our own origin
-      if (event.origin !== window.location.origin) {
-        debugPDFViewer('Message origin mismatch', {
-          received: event.origin,
-          expected: window.location.origin
-        });
-        return;
-      }
-      
-      const data = event.data;
-      
-      // Handle various messages from the viewer
-      if (typeof data === 'object' && data !== null) {
-        debugPDFViewer('Processing message data', data);
-        
-        switch (data.type) {
-          case 'pagechange':
-            debugPDFViewer('Page change event', data.pageNumber);
-            if (onPageChange && typeof data.pageNumber === 'number') {
-              onPageChange(data.pageNumber);
-            }
-            break;
-          case 'documentloaded':
-            debugPDFViewer('Document loaded successfully');
-            console.log('PDF loaded successfully');
-            setIsLoading(false);
-            break;
-          case 'error':
-            debugPDFViewer('PDF viewer error', data.message);
-            console.error('PDF viewer error:', data.message);
-            setError(data.message || 'Error displaying PDF');
-            break;
-          default:
-            debugPDFViewer('Unhandled message type', data.type);
-        }
-      } else {
-        debugPDFViewer('Received non-object message data', typeof data);
-      }
-    };
-    
-    window.addEventListener('message', handleMessage);
-    debugPDFViewer('Message listener attached');
-    
     return () => {
-      window.removeEventListener('message', handleMessage);
-      debugPDFViewer('Message listener removed');
+      // Clean up PDF document when component unmounts or URL changes
+      if (pdfDocRef.current) {
+        debugPDFViewer('Cleaning up PDF document');
+        pdfDocRef.current.destroy();
+        pdfDocRef.current = null;
+      }
     };
-  }, [viewerUrl, onPageChange]);
+  }, [pdfUrl, initialPage]);
+  
+  // Function to render a specific page
+  const renderPage = (pageNum: number) => {
+    if (!pdfDocRef.current || !canvasRef.current) return;
+    
+    const pdfDoc = pdfDocRef.current;
+    if (pageNum < 1 || pageNum > pdfDoc.numPages) {
+      console.warn(`Invalid page number: ${pageNum}`);
+      return;
+    }
+    
+    setPageRendering(true);
+    
+    // Update current page
+    setCurrentPage(pageNum);
+    if (onPageChange) {
+      onPageChange(pageNum);
+    }
+    
+    // Fetch the page
+    pdfDoc.getPage(pageNum).then((page: any) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const context = canvas.getContext('2d');
+      if (!context) return;
+      
+      // Determine viewport dimensions to fit container
+      const viewport = page.getViewport({ scale: 1.0 });
+      const containerWidth = canvas.parentElement?.clientWidth || 800;
+      const scale = containerWidth / viewport.width;
+      const scaledViewport = page.getViewport({ scale });
+      
+      // Set canvas dimensions
+      canvas.height = scaledViewport.height;
+      canvas.width = scaledViewport.width;
+      
+      // Render the page
+      const renderContext = {
+        canvasContext: context,
+        viewport: scaledViewport
+      };
+      
+      const renderTask = page.render(renderContext);
+      
+      renderTask.promise.then(() => {
+        setPageRendering(false);
+        debugPDFViewer('Page rendered successfully', {
+          pageNum,
+          scale,
+          width: scaledViewport.width,
+          height: scaledViewport.height
+        });
+      }).catch((err: any) => {
+        console.error('Error rendering page:', err);
+        setPageRendering(false);
+        setError(`Failed to render page ${pageNum}`);
+      });
+    });
+  };
+  
+  // Handle next/previous page navigation
+  const goToPreviousPage = () => {
+    if (currentPage > 1 && !pageRendering) {
+      renderPage(currentPage - 1);
+    }
+  };
+  
+  const goToNextPage = () => {
+    if (currentPage < numPages && !pageRendering) {
+      renderPage(currentPage + 1);
+    }
+  };
 
   // Render loading state
   if (isLoading) {
@@ -205,22 +253,6 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
   }
   
   // Render PDF viewer with toolbar
-  if (!viewerUrl) {
-    return (
-      <div className="flex items-center justify-center h-full w-full p-8 bg-white rounded-lg shadow-md">
-        <div className="text-center text-red-500">
-          <p>No PDF file provided.</p>
-          <button 
-            onClick={onClose}
-            className="mt-4 px-4 py-2 rounded hover:bg-gray-100"
-          >
-            Close
-          </button>
-        </div>
-      </div>
-    );
-  }
-  
   return (
     <div className={`pdf-viewer-container flex flex-col h-full w-full ${className}`}>
       <div 
@@ -232,29 +264,38 @@ export const PDFJSViewer: React.FC<PDFJSViewerProps> = ({
             {file?.name || 'Document'}
           </h3>
         </div>
+        <div className="flex items-center space-x-2 mr-4">
+          <button 
+            onClick={goToPreviousPage}
+            disabled={currentPage <= 1 || pageRendering}
+            className="px-3 py-1 rounded text-white hover:bg-white/10 disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span className="text-white">
+            Page {currentPage} of {numPages}
+          </span>
+          <button 
+            onClick={goToNextPage}
+            disabled={currentPage >= numPages || pageRendering}
+            className="px-3 py-1 rounded text-white hover:bg-white/10 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
         <button 
           onClick={onClose}
-          className="ml-4 px-3 py-1 rounded text-white hover:bg-white/10"
+          className="px-3 py-1 rounded text-white hover:bg-white/10"
           aria-label="Close"
         >
           Close
         </button>
       </div>
       
-      <div className="flex-1 relative">
-        <iframe
-          ref={iframeRef}
-          src={viewerUrl}
-          title="PDF Viewer"
-          className="pdf-viewer-iframe absolute inset-0 w-full h-full"
-          style={{ border: 'none' }}
-          sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-popups"
-          onLoad={() => {
-            debugPDFViewer('iframe loaded', {
-              url: viewerUrl,
-              contentWindow: iframeRef.current?.contentWindow ? 'Available' : 'Not available'
-            });
-          }}
+      <div className="flex-1 overflow-auto bg-gray-100 p-4 flex justify-center">
+        <canvas 
+          ref={canvasRef} 
+          className="shadow-lg"
         />
       </div>
     </div>

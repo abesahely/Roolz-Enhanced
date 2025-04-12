@@ -1,1 +1,1 @@
-Package version not found: pdfjs-dist@5.2.51
+Couldn't find the requested release version 5.2.51.
