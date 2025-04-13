@@ -23,7 +23,7 @@ declare global {
 // Import annotation utilities
 import { getAnnotationMode, PDFRenderContextOptions, AnnotationMode } from '../utils/annotationConfig';
 import { useAnnotationState } from '../hooks/useAnnotationState';
-import AnnotationToolbar from '../annotations/AnnotationToolbar';
+import AnnotationContainer from '../annotations/AnnotationContainer';
 
 // Import annotation system
 import { pdfEventBus } from '../utils/EventBus';
@@ -808,12 +808,17 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       </div>
       
       {/* Annotation toolbar */}
-      <AnnotationToolbar 
-        currentMode={annotationMode}
-        onModeChange={toggleAnnotationMode}
+      <AnnotationContainer 
+        enabled={!pageRendering && pdfDocRef.current !== null}
+        initialMode={annotationMode}
+        onAnnotationAdded={(type, data) => {
+          // Mark annotations as modified when something is added
+          markAnnotationsModified();
+          console.log(`[DirectPDFViewer] Annotation added: ${type}`, data);
+        }}
         onSave={handleSaveAnnotations}
         hasModifications={annotationsModified}
-        isVisible={!pageRendering && pdfDocRef.current !== null}
+        onClose={onClose}
       />
       
       {/* PDF canvas container - maximize the available space */}
@@ -831,10 +836,15 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
           {/* Native PDF.js annotation layer */}
           {currentPageObj && currentViewport && (
             <NativeAnnotationLayer
-              page={currentPageObj}
+              pdfPage={currentPageObj}
               viewport={currentViewport}
-              isVisible={!pageRendering}
-              scale={zoomMode === 'custom' ? customScale : 1.0}
+              pageNumber={currentPage}
+              isEditMode={isAnnotating}
+              onAnnotationCreated={(annotation) => {
+                markAnnotationsModified();
+                console.log('[DirectPDFViewer] Annotation created', annotation);
+              }}
+              containerRef={{ current: canvasRef.current?.parentElement || null }}
             />
           )}
         </div>
