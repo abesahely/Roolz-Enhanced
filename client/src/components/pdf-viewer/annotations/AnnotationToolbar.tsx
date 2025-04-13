@@ -1,7 +1,23 @@
+/**
+ * Annotation Toolbar Component
+ *
+ * This component provides a user interface for controlling PDF annotations,
+ * with tools for text boxes, highlighting, drawing, and more.
+ */
 import React from 'react';
 import { BRAND_COLORS } from '@/lib/constants';
+import { AnnotationMode, AnnotationModes } from '../utils/annotationConfig';
 
-import { AnnotationMode } from '../utils/annotationConfig';
+// Icons
+import { 
+  TextCursor, 
+  Highlighter, 
+  PenLine, 
+  PenTool, 
+  CheckSquare, 
+  X,
+  Save
+} from 'lucide-react';
 
 interface AnnotationToolbarProps {
   /**
@@ -10,106 +26,168 @@ interface AnnotationToolbarProps {
   currentMode: AnnotationMode;
   
   /**
-   * Function to handle mode changes
+   * Callback when an annotation mode is toggled
    */
-  onModeChange: (mode: AnnotationMode) => void;
+  onModeToggle: (mode: AnnotationMode) => void;
   
   /**
-   * Function to handle saving annotations
+   * Callback to save annotations
    */
-  onSave: () => void;
+  onSave?: () => void;
   
   /**
-   * Whether annotations have been modified
+   * Whether annotations have been modified (enables save button)
    */
-  hasModifications: boolean;
+  annotationsModified?: boolean;
   
   /**
-   * Whether annotation toolbar is visible
+   * Callback to close the toolbar
    */
-  isVisible?: boolean;
+  onClose?: () => void;
+  
+  /**
+   * Additional class name for styling
+   */
+  className?: string;
 }
 
 /**
- * Annotation Toolbar Component
- * 
- * Provides buttons for selecting different annotation types
- * and saving annotations.
+ * AnnotationToolbar component
+ * Provides UI controls for PDF annotation
  */
 const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
   currentMode,
-  onModeChange,
+  onModeToggle,
   onSave,
-  hasModifications,
-  isVisible = true
+  annotationsModified = false,
+  onClose,
+  className = ''
 }) => {
-  if (!isVisible) return null;
-
-  // Utility function to determine button background color
-  const getButtonStyle = (mode: AnnotationMode) => {
-    return currentMode === mode 
-      ? { backgroundColor: BRAND_COLORS.ORANGE } 
-      : { backgroundColor: 'transparent' };
+  // Determine if a button is active
+  const isActive = (mode: AnnotationMode) => currentMode === mode;
+  
+  // Active button style with beNext.io branding
+  const activeButtonStyle = {
+    backgroundColor: BRAND_COLORS.ORANGE,
+    color: '#FFFFFF'
+  };
+  
+  // Base button style
+  const buttonStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '6px',
+    padding: '8px',
+    margin: '4px',
+    cursor: 'pointer',
+    backgroundColor: '#f5f5f5',
+    transition: 'all 0.2s ease',
+    border: 'none',
+    outline: 'none',
+    width: '40px',
+    height: '40px'
   };
 
   return (
-    <div 
-      className="annotation-toolbar flex flex-wrap items-center justify-between p-2 border-t border-white/10"
-      style={{ backgroundColor: BRAND_COLORS.NAVY }}
-    >
-      <div className="flex flex-wrap items-center space-x-1">
-        {/* Text annotation button */}
-        <button 
-          className="px-3 py-1 rounded text-white hover:bg-white/10 flex items-center"
-          onClick={() => onModeChange(currentMode === 'text' ? null : 'text')}
-          style={getButtonStyle('text')}
-          title="Add text annotation"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-          <span className="hidden sm:inline">Text</span>
-        </button>
-
-        {/* Highlight annotation button */}
-        <button 
-          className="px-3 py-1 rounded text-white hover:bg-white/10 flex items-center"
-          onClick={() => onModeChange(currentMode === 'highlight' ? null : 'highlight')}
-          style={getButtonStyle('highlight')}
-          title="Highlight text"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          <span className="hidden sm:inline">Highlight</span>
-        </button>
-
-        {/* Signature annotation button */}
-        <button 
-          className="px-3 py-1 rounded text-white hover:bg-white/10 flex items-center"
-          onClick={() => onModeChange(currentMode === 'signature' ? null : 'signature')}
-          style={getButtonStyle('signature')}
-          title="Add signature"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-          </svg>
-          <span className="hidden sm:inline">Signature</span>
-        </button>
-      </div>
-
-      {/* Save button - only show when modifications exist */}
-      {hasModifications && (
+    <div className={`bg-white p-2 rounded-lg shadow-md ${className}`}
+         style={{
+           display: 'flex',
+           flexDirection: 'row',
+           alignItems: 'center',
+           gap: '0.5rem',
+           border: `1px solid ${BRAND_COLORS.ORANGE}33`
+         }}>
+      {/* Text Box Tool */}
+      <button
+        style={{
+          ...buttonStyle,
+          ...(isActive(AnnotationModes.TEXT) ? activeButtonStyle : {})
+        }}
+        onClick={() => onModeToggle(AnnotationModes.TEXT)}
+        title="Add Text Box"
+      >
+        <TextCursor size={20} />
+      </button>
+      
+      {/* Highlight Tool */}
+      <button
+        style={{
+          ...buttonStyle,
+          ...(isActive(AnnotationModes.HIGHLIGHT) ? activeButtonStyle : {})
+        }}
+        onClick={() => onModeToggle(AnnotationModes.HIGHLIGHT)}
+        title="Highlight Text"
+      >
+        <Highlighter size={20} />
+      </button>
+      
+      {/* Drawing Tool */}
+      <button
+        style={{
+          ...buttonStyle,
+          ...(isActive(AnnotationModes.DRAWING) ? activeButtonStyle : {})
+        }}
+        onClick={() => onModeToggle(AnnotationModes.DRAWING)}
+        title="Draw on PDF"
+      >
+        <PenLine size={20} />
+      </button>
+      
+      {/* Signature Tool */}
+      <button
+        style={{
+          ...buttonStyle,
+          ...(isActive(AnnotationModes.SIGNATURE) ? activeButtonStyle : {})
+        }}
+        onClick={() => onModeToggle(AnnotationModes.SIGNATURE)}
+        title="Add Signature"
+      >
+        <PenTool size={20} />
+      </button>
+      
+      {/* Checkbox Tool */}
+      <button
+        style={{
+          ...buttonStyle,
+          ...(isActive(AnnotationModes.CHECKBOX) ? activeButtonStyle : {})
+        }}
+        onClick={() => onModeToggle(AnnotationModes.CHECKBOX)}
+        title="Add Checkbox"
+      >
+        <CheckSquare size={20} />
+      </button>
+      
+      {/* Divider */}
+      <div style={{ height: '30px', width: '1px', backgroundColor: '#e0e0e0', margin: '0 8px' }} />
+      
+      {/* Save Button */}
+      {onSave && (
         <button
-          className="px-3 py-1 rounded text-white flex items-center ml-auto"
-          onClick={onSave}
-          style={{ backgroundColor: BRAND_COLORS.ORANGE }}
-          title="Save annotations"
+          style={{
+            ...buttonStyle,
+            opacity: annotationsModified ? 1 : 0.5,
+            cursor: annotationsModified ? 'pointer' : 'not-allowed'
+          }}
+          onClick={annotationsModified ? onSave : undefined}
+          disabled={!annotationsModified}
+          title={annotationsModified ? "Save Annotations" : "No changes to save"}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-          </svg>
-          <span className="hidden sm:inline">Save</span>
+          <Save size={20} color={BRAND_COLORS.ORANGE} />
+        </button>
+      )}
+      
+      {/* Close Button */}
+      {onClose && (
+        <button
+          style={{
+            ...buttonStyle,
+            marginLeft: 'auto'
+          }}
+          onClick={onClose}
+          title="Close Annotation Tools"
+        >
+          <X size={20} />
         </button>
       )}
     </div>

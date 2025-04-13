@@ -1,180 +1,117 @@
 /**
- * Native PDF.js Annotation Layer Component
- * 
- * This component renders the native PDF.js annotation layers,
- * including both the static annotation layer and the editable
- * annotation editor layer.
+ * Native Annotation Layer Component
+ *
+ * This component provides integration with PDF.js native annotation capabilities,
+ * allowing direct interaction with the PDF annotation system.
  */
-
-import React, { useRef, useEffect } from 'react';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+import React, { useEffect, useRef } from 'react';
+import { initializePDFJS, isPDFJSInitialized } from '../utils/PDFJSInitializer';
 import { pdfEventBus } from '../utils/EventBus';
-import { SimpleLinkService } from '../utils/LinkService';
+import { annotationManager } from '../utils/AnnotationManager';
+import { EditorModes } from '../utils/annotationConfig';
 
 interface NativeAnnotationLayerProps {
   /**
-   * The PDF page object
+   * Current page viewport from PDF.js
    */
-  page: any;
+  viewport?: any;
   
   /**
-   * The viewport for the PDF page
+   * PDF page object from PDF.js
    */
-  viewport: any;
+  pdfPage?: any;
   
   /**
-   * Whether the annotation layer is visible
+   * Current page number
    */
-  isVisible?: boolean;
+  pageNumber?: number;
   
   /**
-   * The current scale of the PDF
+   * Canvas element for PDF rendering
    */
-  scale?: number;
+  canvas?: HTMLCanvasElement | null;
+  
+  /**
+   * Current annotation mode
+   */
+  annotationMode?: number;
+  
+  /**
+   * Whether the viewer is in edit mode
+   */
+  isEditMode?: boolean;
+  
+  /**
+   * Callback when an annotation is created
+   */
+  onAnnotationCreated?: (annotation: any) => void;
+  
+  /**
+   * Callback when an annotation is modified
+   */
+  onAnnotationModified?: (annotation: any) => void;
 }
 
 /**
  * NativeAnnotationLayer component
- * 
- * Renders the PDF.js annotation layers for a specific page
+ * This component initializes and manages the PDF.js native annotation system
  */
 const NativeAnnotationLayer: React.FC<NativeAnnotationLayerProps> = ({
-  page,
   viewport,
-  isVisible = true,
-  scale = 1.0,
+  pdfPage,
+  pageNumber = 1,
+  canvas,
+  annotationMode = EditorModes.NONE,
+  isEditMode = false,
+  onAnnotationCreated,
+  onAnnotationModified
 }) => {
-  // References to the DOM elements for the layers
-  const annotationLayerRef = useRef<HTMLDivElement>(null);
-  const annotationEditorLayerRef = useRef<HTMLDivElement>(null);
+  // Reference to track if this component has initialized annotations
+  const hasInitializedRef = useRef(false);
   
-  // Reference to the link service
-  const linkServiceRef = useRef<SimpleLinkService>(new SimpleLinkService());
-  
-  // Initialize the annotation layers when the page or viewport changes
+  // Effect to initialize PDF.js annotation system
   useEffect(() => {
-    // Early return checks
-    if (!page || !viewport || !isVisible) return;
-    if (!annotationLayerRef.current || !annotationEditorLayerRef.current) return;
+    // Skip if already initialized by this component
+    if (hasInitializedRef.current) return;
     
-    // Create a non-flipped viewport for annotations (PDF.js expects non-flipped)
-    const annotationViewport = viewport.clone({ dontFlip: true });
-    
-    // Clear any existing content
-    annotationLayerRef.current.innerHTML = '';
-    annotationEditorLayerRef.current.innerHTML = '';
-    
-    // Update link service with current page
-    if (page._pageIndex !== undefined) {
-      linkServiceRef.current.page = page._pageIndex + 1;
+    // Initialize the PDF.js environment if needed
+    if (!isPDFJSInitialized()) {
+      console.log('Initializing PDF.js annotation environment');
+      initializePDFJS();
     }
     
-    // Setup annotation layer (static annotations)
-    const setupAnnotationLayer = () => {
-      try {
-        if (pdfjsLib.AnnotationLayer) {
-          const annotationLayer = new pdfjsLib.AnnotationLayer({
-            viewport: annotationViewport,
-            div: annotationLayerRef.current,
-            page,
-            renderInteractiveForms: true,
-          } as any);
-          
-          annotationLayer.render({
-            viewport: annotationViewport,
-          } as any);
-        }
-      } catch (error) {
-        console.error('Error rendering annotation layer:', error);
-      }
-    };
+    // Set up annotation handlers
+    if (onAnnotationCreated) {
+      annotationManager.onAnnotationCreated(onAnnotationCreated);
+    }
     
-    // Setup annotation editor layer (editable annotations)
-    const setupEditorLayer = () => {
-      try {
-        if (window.PDFViewerApplication?.pdfViewer?.annotationEditorUIManager && 
-            typeof pdfjsLib.AnnotationEditorLayer === 'function') {
-          
-          const { annotationEditorUIManager } = window.PDFViewerApplication.pdfViewer;
-          
-          // Create parameters that should work with our PDF.js version
-          const editorParams = {
-            div: annotationEditorLayerRef.current,
-            viewport: annotationViewport,
-            page,
-            uiManager: annotationEditorUIManager,
-            // Add safe fallback values for required parameters
-            accessibilityManager: null,
-            annotationLayer: null,
-            mode: 1, // Text editor mode
-            l10n: null,
-            fieldObjects: {}, // Empty object instead of undefined
-          };
-          
-          const annotationEditorLayer = new pdfjsLib.AnnotationEditorLayer(editorParams as any);
-          
-          // Update the current page number in PDFViewerApplication
-          if (typeof page._pageIndex === 'number') {
-            window.PDFViewerApplication.pdfViewer.currentPageNumber = page._pageIndex + 1;
-          }
-          
-          // Render with minimal properties
-          annotationEditorLayer.render({
-            viewport: annotationViewport,
-          } as any);
-        }
-      } catch (error) {
-        console.error('Error initializing annotation editor layer:', error);
-      }
-    };
+    if (onAnnotationModified) {
+      pdfEventBus.on('annotationedited', onAnnotationModified);
+    }
     
-    // Run setup functions
-    setupAnnotationLayer();
-    setupEditorLayer();
+    // Mark as initialized
+    hasInitializedRef.current = true;
     
-    // Clean up function
+    // Clean up on unmount
     return () => {
-      // Any cleanup needed for annotation layers
-    };
-  }, [page, viewport, isVisible, scale]);
-  
-  if (!isVisible) {
-    return null;
-  }
-  
-  return (
-    <>
-      {/* Static annotation layer for non-editable annotations */}
-      <div 
-        ref={annotationLayerRef}
-        className="annotationLayer"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          pointerEvents: 'none',
-          zIndex: 1
-        }}
-      />
+      if (onAnnotationModified) {
+        pdfEventBus.off('annotationedited', onAnnotationModified);
+      }
       
-      {/* Editable annotation editor layer */}
-      <div 
-        ref={annotationEditorLayerRef}
-        className="annotationEditorLayer"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          pointerEvents: 'auto',
-          zIndex: 2
-        }}
-      />
-    </>
-  );
+      // Note: We don't clean up the entire system here as other components
+      // might still be using it. The parent component should handle cleanup.
+    };
+  }, [onAnnotationCreated, onAnnotationModified]);
+  
+  // Effect to update annotation mode when it changes
+  useEffect(() => {
+    if (hasInitializedRef.current) {
+      // Update the editor mode in the annotation manager
+      annotationManager.setMode(annotationMode || EditorModes.NONE);
+    }
+  }, [annotationMode]);
+  
+  return null; // No DOM elements needed, this is purely a logical component
 };
 
 export default NativeAnnotationLayer;
