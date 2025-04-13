@@ -5,6 +5,11 @@ import { BRAND_COLORS } from '@/lib/constants';
 // This ensures we're using the version that's actually installed (3.11.174)
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 
+// Import annotation utilities
+import { getAnnotationMode, PDFRenderContextOptions } from '../utils/annotationConfig';
+import { useAnnotationState } from '../hooks/useAnnotationState';
+import AnnotationToolbar from '../annotations/AnnotationToolbar';
+
 // For TypeScript, we'll use 'any' types to avoid type conflicts
 // The specific PDF.js types can cause issues with different versions
 interface SimplePDFDocumentProxy {
@@ -86,6 +91,20 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   const MIN_SCALE = 0.25;
   const MAX_SCALE = 3.0;
   const SCALE_STEP = 0.1;
+  
+  // Annotation state using our custom hook
+  const {
+    annotationMode,
+    isAnnotating,
+    annotationsModified,
+    toggleAnnotationMode,
+    getAnnotationEditorType,
+    markAnnotationsModified,
+    resetAnnotationsModified
+  } = useAnnotationState();
+  
+  // Reference to annotation manager for PDF.js
+  const annotationEditorUIManagerRef = useRef<any>(null);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDocRef = useRef<any>(null);
@@ -385,10 +404,18 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       canvas.height = scaledViewport.height;
       canvas.width = scaledViewport.width;
       
-      // Render the page
-      const renderContext = {
+      // Render the page with annotation support
+      const renderContext: PDFRenderContextOptions = {
         canvasContext: context,
-        viewport: scaledViewport
+        viewport: scaledViewport,
+        // Enable annotation support when in annotation mode
+        annotationMode: getAnnotationEditorType(),
+        // Enable interactive forms for better user interaction
+        renderInteractiveForms: true,
+        // Enable enhanced text selection for highlight annotations
+        enhanceTextSelection: annotationMode === 'highlight',
+        // Enable annotation editor layers
+        renderAnnotationEditorLayers: true
       };
       
       try {
@@ -497,6 +524,16 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   const setFitPage = () => {
     setZoomMode('fit-page');
     renderPage(currentPage, 'fit-page');
+  };
+  
+  // Function to handle saving annotations
+  const handleSaveAnnotations = () => {
+    debugPDFViewer('Saving annotations');
+    
+    if (onSaveWithAnnotations) {
+      onSaveWithAnnotations();
+      resetAnnotationsModified();
+    }
   };
 
   // Render loading state
@@ -654,6 +691,15 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
           </button>
         </div>
       </div>
+      
+      {/* Annotation toolbar */}
+      <AnnotationToolbar 
+        currentMode={annotationMode}
+        onModeChange={toggleAnnotationMode}
+        onSave={handleSaveAnnotations}
+        hasModifications={annotationsModified}
+        isVisible={!pageRendering && pdfDocRef.current !== null}
+      />
       
       {/* PDF canvas container - maximize the available space */}
       <div 

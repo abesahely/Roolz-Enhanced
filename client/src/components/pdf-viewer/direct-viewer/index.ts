@@ -1,1 +1,5 @@
-export { default as DirectPDFViewer } from './DirectPDFViewer';
+// Export the DirectPDFViewer component
+import { DirectPDFViewer } from './DirectPDFViewer';
+
+export { DirectPDFViewer };
+export default DirectPDFViewer;
