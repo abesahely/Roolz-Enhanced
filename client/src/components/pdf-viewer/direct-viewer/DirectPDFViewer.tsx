@@ -111,6 +111,10 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [pageRendering, setPageRendering] = useState<boolean>(false);
   
+  // Track the current PDF page object and viewport for annotations
+  const [currentPageObj, setCurrentPageObj] = useState<any>(null);
+  const [currentViewport, setCurrentViewport] = useState<any>(null);
+  
   // Zoom controls
   type ZoomMode = 'fit-width' | 'fit-page' | 'custom';
   const [zoomMode, setZoomMode] = useState<ZoomMode>('fit-width');
@@ -171,6 +175,14 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
         renderTaskRef.current = null;
       }
       
+      // Clean up the annotation system
+      try {
+        debugPDFViewer('Cleaning up annotation system');
+        cleanupAnnotationSystem();
+      } catch (err) {
+        console.error('Error cleaning up annotation system:', err);
+      }
+      
       // Destroy any loaded PDF documents
       if (pdfDocRef.current) {
         debugPDFViewer('Destroying PDF document on cleanup');
@@ -179,6 +191,10 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
         });
         pdfDocRef.current = null;
       }
+      
+      // Reset state
+      setCurrentPageObj(null);
+      setCurrentViewport(null);
     };
   }, []);
   
@@ -218,6 +234,17 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
 
   // We're now handling zoom mode changes directly in the change handlers,
   // so we don't need to trigger re-renders in a useEffect, which can cause race conditions
+  
+  // Effect to update annotation system when page changes
+  useEffect(() => {
+    if (currentPage > 0 && isAnnotationSystemInitialized()) {
+      try {
+        updateAnnotationPage(currentPage);
+      } catch (err) {
+        console.error('Error updating annotation page:', err);
+      }
+    }
+  }, [currentPage]);
   
   // Step 1: Load the File as an ArrayBuffer and store it in a ref
   useEffect(() => {
@@ -459,6 +486,10 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       scale = Math.max(Math.min(scale, MAX_SCALE), MIN_SCALE);
       
       const scaledViewport = page.getViewport({ scale });
+      
+      // Store the current page and viewport for annotation layers
+      setCurrentPageObj(page);
+      setCurrentViewport(scaledViewport);
       
       // Set canvas dimensions
       canvas.height = scaledViewport.height;
@@ -797,7 +828,15 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
             id="pdf-canvas"
           />
           
-
+          {/* Native PDF.js annotation layer */}
+          {currentPageObj && currentViewport && (
+            <NativeAnnotationLayer
+              page={currentPageObj}
+              viewport={currentViewport}
+              isVisible={!pageRendering}
+              scale={zoomMode === 'custom' ? customScale : 1.0}
+            />
+          )}
         </div>
       </div>
     </div>
