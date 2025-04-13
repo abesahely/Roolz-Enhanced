@@ -8,7 +8,7 @@ import React, { useEffect, useRef } from 'react';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 import { pdfEventBus } from '../utils/EventBus';
 import { annotationManager } from '../utils/AnnotationManager';
-import { getAnnotationStorage } from '../utils/PDFJSInitializer';
+import { getAnnotationStorage, getLinkService } from '../utils/PDFJSInitializer';
 
 interface AnnotationRendererLayerProps {
   /**
@@ -134,9 +134,19 @@ const AnnotationRendererLayer: React.FC<AnnotationRendererLayerProps> = ({
           uiManager: uiManager,
           div: editorLayerRef.current,
           mode: annotationManager.currentMode,
-          accessibilityManager: null,
-          l10n: null,
-          editingState: null,
+          // Use a minimal accessibilityManager to fix null errors
+          accessibilityManager: {
+            isVisible: false,
+            notify: () => {},
+            setIsVisible: (visible) => {},
+            register: () => {},
+            unregister: () => {}
+          },
+          // Use minimal l10n implementation
+          l10n: {
+            get: (key, args, fallback) => fallback || key
+          },
+          editingState: false,
         });
         
         // Log successful creation for debugging

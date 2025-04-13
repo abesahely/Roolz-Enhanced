@@ -539,25 +539,42 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
             });
             
             // Initialize annotation editor if we're in annotation mode
-            if (annotationMode && window.PDFViewerApplication?.pdfViewer) {
+            if (window.PDFViewerApplication) {
               try {
-                debugPDFViewer('Setting PDF.js annotation editor type', { 
-                  type: getAnnotationEditorType() 
+                debugPDFViewer('Setting up PDF.js annotation editor', { 
+                  hasAnnotationMode: !!annotationMode,
+                  editorType: annotationMode ? getAnnotationEditorType() : 0
                 });
                 
-                // Attempt to access the PDF.js annotation layer
-                const pdfViewer = window.PDFViewerApplication.pdfViewer;
+                // Access the PDF.js annotation UI manager
+                const uiManager = window.PDFViewerApplication.annotationEditorUIManager;
                 
                 // If the editor exists, set the mode
-                if (pdfViewer.annotationEditorUIManager) {
+                if (uiManager) {
                   // Store reference to the editor manager
-                  annotationEditorUIManagerRef.current = pdfViewer.annotationEditorUIManager;
+                  annotationEditorUIManagerRef.current = uiManager;
                   
-                  // Set the current editor type (text, highlight, etc.)
-                  pdfViewer.annotationEditorUIManager.updateMode(getAnnotationEditorType());
+                  // Set default parameters for better appearance
+                  uiManager.updateParams({
+                    fontSize: 12,
+                    fontFamily: 'Helvetica, Arial, sans-serif',
+                    textColor: '#000000',
+                    backgroundColor: `${BRAND_COLORS.ORANGE}33`, // 20% opacity orange
+                    inkThickness: 3,
+                    inkColor: BRAND_COLORS.ORANGE,
+                    inkOpacity: 1,
+                    highlightColor: `${BRAND_COLORS.ORANGE}80`, // 50% opacity orange
+                    fieldObjects: {} // Needed to prevent errors
+                  });
                   
-                  // Mark annotations as modifiable
-                  markAnnotationsModified();
+                  // Set the current editor type if an annotation mode is active
+                  if (annotationMode) {
+                    // Set the current editor type (text, highlight, etc.)
+                    uiManager.updateMode(getAnnotationEditorType());
+                    
+                    // Mark annotations as modifiable
+                    markAnnotationsModified();
+                  }
                 }
               } catch (err) {
                 console.error('Error initializing annotation editor:', err);
