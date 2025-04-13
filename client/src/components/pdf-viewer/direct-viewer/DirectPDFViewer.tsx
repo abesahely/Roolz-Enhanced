@@ -5,27 +5,16 @@ import { BRAND_COLORS } from '@/lib/constants';
 // This ensures we're using the version that's actually installed (3.11.174)
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 
-// Add global type declaration for PDF.js application
-declare global {
-  interface Window {
-    PDFViewerApplication?: {
-      pdfViewer: {
-        currentPageNumber: number;
-        annotationEditorUIManager?: {
-          updateMode: (mode: number) => void;
-          updateParams: (params: any) => void;
-        };
-      };
-    };
-  }
-}
+// Type declarations should be handled in a common location
+// The main declarations are in AnnotationManager.ts now
 
-// Import annotation utilities
-import { getAnnotationMode, PDFRenderContextOptions, AnnotationMode } from '../utils/annotationConfig';
+// Import annotation components
 import { useAnnotationState } from '../hooks/useAnnotationState';
 import AnnotationContainer from '../annotations/AnnotationContainer';
+import NativeAnnotationLayer from '../annotations/NativeAnnotationLayer';
 
-// Import annotation system
+// Import annotation utilities
+import { getAnnotationMode, AnnotationMode } from '../utils/annotationConfig';
 import { pdfEventBus } from '../utils/EventBus';
 import { SimpleLinkService } from '../utils/LinkService';
 import { 
@@ -35,7 +24,17 @@ import {
   cleanupAnnotationSystem,
   isAnnotationSystemInitialized
 } from '../utils/AnnotationManager';
-import NativeAnnotationLayer from '../annotations/NativeAnnotationLayer';
+
+// Define the render context options for PDF.js
+interface PDFRenderContextOptions {
+  viewport: any;
+  canvasContext: CanvasRenderingContext2D;
+  renderInteractiveForms?: boolean;
+  enhanceTextSelection?: boolean;
+  renderAnnotationEditorLayer?: boolean;
+  isAnnotator?: boolean;
+  [key: string]: any;
+}
 
 // For TypeScript, we'll use 'any' types to avoid type conflicts
 // The specific PDF.js types can cause issues with different versions
@@ -844,7 +843,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
                 markAnnotationsModified();
                 console.log('[DirectPDFViewer] Annotation created', annotation);
               }}
-              containerRef={{ current: canvasRef.current?.parentElement || null }}
+              containerRef={{ current: canvasRef.current?.parentElement as HTMLDivElement || null }}
             />
           )}
         </div>
