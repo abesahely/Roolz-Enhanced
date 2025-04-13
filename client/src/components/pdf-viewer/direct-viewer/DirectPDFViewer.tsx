@@ -24,6 +24,7 @@ declare global {
 import { getAnnotationMode, getAnnotationMode as getAnnotationModeFunction, PDFRenderContextOptions } from '../utils/annotationConfig';
 import { useAnnotationState } from '../hooks/useAnnotationState';
 import AnnotationToolbar from '../annotations/AnnotationToolbar';
+// import AnnotationLayer from '../annotations/AnnotationLayer';
 import { AnnotationMode } from '../utils/annotationConfig';
 
 // For TypeScript, we'll use 'any' types to avoid type conflicts
@@ -766,11 +767,79 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
         id="pdf-wrapper" 
         className="flex-1 overflow-auto bg-gray-100 p-2 md:p-4 flex justify-center pdf-container"
       >
-        <canvas 
-          ref={canvasRef} 
-          className="shadow-lg max-w-full"
-          id="pdf-canvas"
-        />
+        <div className="relative">
+          <canvas 
+            ref={canvasRef} 
+            className="shadow-lg max-w-full"
+            id="pdf-canvas"
+          />
+          
+          {/* Simple annotation overlay */}
+          {canvasRef.current && !pageRendering && annotationMode && (
+            <div 
+              className="absolute top-0 left-0 w-full h-full z-10"
+              style={{ 
+                cursor: annotationMode ? 'crosshair' : 'default',
+                pointerEvents: annotationMode ? 'auto' : 'none' 
+              }}
+              onClick={(e) => {
+                // Handle annotation clicks
+                if (!annotationMode) return;
+                
+                const rect = canvasRef.current?.getBoundingClientRect();
+                if (!rect) return;
+                
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                let text = '';
+                if (annotationMode === 'text') {
+                  text = prompt('Enter text:') || '';
+                  if (!text) return;
+                } else if (annotationMode === 'signature') {
+                  text = prompt('Enter your signature:') || '';
+                  if (!text) return;
+                } else if (annotationMode === 'highlight') {
+                  // For highlight, we'll just add a highlight at the click position
+                }
+                
+                // For now, just mark that annotations were modified
+                // In a real app, you'd save this annotation data
+                markAnnotationsModified();
+                
+                // Display a temporary visual indicator
+                const indicator = document.createElement('div');
+                indicator.style.position = 'absolute';
+                indicator.style.left = `${x}px`;
+                indicator.style.top = `${y}px`;
+                
+                if (annotationMode === 'text') {
+                  indicator.textContent = text;
+                  indicator.style.backgroundColor = 'rgba(244, 135, 31, 0.2)';
+                  indicator.style.padding = '4px';
+                  indicator.style.borderRadius = '3px';
+                  indicator.style.maxWidth = '200px';
+                  indicator.style.wordBreak = 'break-word';
+                } else if (annotationMode === 'signature') {
+                  indicator.textContent = text;
+                  indicator.style.fontFamily = 'Dancing Script, cursive';
+                  indicator.style.fontSize = '18px';
+                } else if (annotationMode === 'highlight') {
+                  indicator.style.backgroundColor = 'rgba(244, 135, 31, 0.3)';
+                  indicator.style.height = '20px';
+                  indicator.style.width = '100px';
+                  indicator.style.left = `${x - 50}px`;
+                  indicator.style.top = `${y - 10}px`;
+                }
+                
+                const container = canvasRef.current?.parentElement;
+                if (container) {
+                  container.appendChild(indicator);
+                }
+              }}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
