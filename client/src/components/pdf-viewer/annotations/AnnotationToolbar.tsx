@@ -98,7 +98,7 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
     color: '#FFFFFF'
   };
   
-  // Base button style
+  // Base button style with improved contrast
   const buttonStyle = {
     display: 'flex',
     alignItems: 'center',
@@ -107,9 +107,10 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
     padding: '8px',
     margin: '4px',
     cursor: 'pointer',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f0f0f0',
+    color: '#333333', // Darker text color for better contrast
     transition: 'all 0.2s ease',
-    border: 'none',
+    border: '1px solid #e0e0e0', // Light border for definition
     outline: 'none',
     width: '40px',
     height: '40px'
@@ -197,14 +198,15 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
         <button
           style={{
             ...buttonStyle,
-            opacity: annotationsModified ? 1 : 0.5,
-            cursor: annotationsModified ? 'pointer' : 'not-allowed'
+            opacity: isModified ? 1 : 0.5,
+            cursor: isModified ? 'pointer' : 'not-allowed',
+            color: isModified ? BRAND_COLORS.ORANGE : '#666666'
           }}
-          onClick={annotationsModified ? onSave : undefined}
-          disabled={!annotationsModified}
-          title={annotationsModified ? "Save Annotations" : "No changes to save"}
+          onClick={isModified ? onSave : undefined}
+          disabled={!isModified}
+          title={isModified ? "Save Annotations" : "No changes to save"}
         >
-          <Save size={20} color={BRAND_COLORS.ORANGE} />
+          <Save size={20} />
         </button>
       )}
       
