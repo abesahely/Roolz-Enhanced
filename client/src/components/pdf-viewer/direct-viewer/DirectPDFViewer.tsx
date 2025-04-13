@@ -360,9 +360,7 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
           setNumPages(pdfDoc.numPages);
           setIsLoading(false);
           
-          // Temporarily disabling annotation system due to compatibility issues
-          // We'll implement a more compatible solution in a future update
-          /*
+          // Initialize the annotation system
           try {
             debugPDFViewer('Initializing annotation system');
             initializeAnnotationSystem(pdfDoc, initialPage);
@@ -374,7 +372,6 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
           } catch (error) {
             console.error('Failed to initialize annotations:', error);
           }
-          */
           
           // Add a small delay before rendering the initial page
           // This gives React time to update the DOM with components
@@ -498,17 +495,16 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       canvas.height = scaledViewport.height;
       canvas.width = scaledViewport.width;
       
-      // Render the page with basic options
-      // We're temporarily disabling advanced annotation features
+      // Render the page with annotation support
       const renderContext: PDFRenderContextOptions = {
         canvasContext: context,
         viewport: scaledViewport,
-        // Keeping basic form rendering
+        // Enable interactive forms for better user interaction
         renderInteractiveForms: true,
-        // Enable enhanced text selection for better usability
+        // Enable enhanced text selection for highlight annotations
         enhanceTextSelection: true,
-        // Disabled annotation editor layer due to compatibility issues
-        renderAnnotationEditorLayer: false
+        // Enable annotation editor layer (correct parameter name)
+        renderAnnotationEditorLayer: true
       };
       
       try {
@@ -526,9 +522,6 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
               height: scaledViewport.height
             });
             
-            // Temporarily disabling annotation editor initialization due to compatibility issues
-            // We'll implement a more compatible solution in the future
-            /*
             // Initialize annotation editor if we're in annotation mode
             if (annotationMode && window.PDFViewerApplication?.pdfViewer) {
               try {
@@ -554,7 +547,6 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
                 console.error('Error initializing annotation editor:', err);
               }
             }
-            */
             
             // Notify parent when canvas is ready for annotations
             if (onCanvasReady && canvas) {
@@ -836,10 +828,15 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
             id="pdf-canvas"
           />
           
-          {/* 
-            We're temporarily disabling the native annotation layer due to compatibility issues
-            with the current PDF.js version. We'll implement an alternative approach in a future update.
-          */}
+          {/* Native PDF.js annotation layer */}
+          {currentPageObj && currentViewport && (
+            <NativeAnnotationLayer
+              page={currentPageObj}
+              viewport={currentViewport}
+              isVisible={!pageRendering}
+              scale={zoomMode === 'custom' ? customScale : 1.0}
+            />
+          )}
         </div>
       </div>
     </div>
