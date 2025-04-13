@@ -142,27 +142,52 @@ This document tracks the migration from our custom PDF viewer implementation to 
     - [x] Add responsive zoom controls for mobile devices
   - [ ] Implement keyboard navigation shortcuts
 
-### Phase 4: Feature Enhancement
-- [ ] Integrate PDF.js Native Annotations
+### Phase 4: Native PDF.js Annotation Implementation
+- [ ] Integrate PDF.js Native Annotations - Phase 1: Proper Initialization Structure
   - [x] Research PDF.js viewer annotation capabilities
-  - [ ] Configure annotation modes in DirectPDFViewer
-  - [ ] Implement annotation state management
-  - [ ] Enable proper event handling and lifecycle management
-- [ ] Implement Annotation Types
-  - [ ] Add FreeText annotation support
+  - [ ] Create dedicated initializer module for PDF.js global environment
+  - [ ] Implement complete `PDFViewerApplication` structure following official example
+  - [ ] Enhance EventBus implementation to fully match PDF.js's event system
+  - [ ] Ensure proper worker initialization with exact version matching
+  - [ ] Configure global worker options before any document loading
+
+- [ ] Integrate PDF.js Native Annotations - Phase 2: Annotation Component Corrections
+  - [ ] Create complete AnnotationStorage implementation matching PDF.js API
+  - [ ] Implement all required storage methods (getAll, getValue, setValue, etc.)
+  - [ ] Update annotation layer creation with complete parameter objects
+  - [ ] Create proper UIManager implementation based on PDF.js source
+  - [ ] Implement required methods for handling mode changes and editor interactions
+  - [ ] Add robust error handling and fallbacks for annotation components
+
+- [ ] Integrate PDF.js Native Annotations - Phase 3: Integration and Workflow Improvements
+  - [ ] Implement proper cleanup and initialization on component mount/unmount
+  - [ ] Handle page changes correctly with proper annotation state preservation
+  - [ ] Add extensive checking before accessing potentially undefined properties
+  - [ ] Create fallback mechanisms for annotation features
+  - [ ] Implement better error reporting for annotation-specific issues
+  - [ ] Create version detection to handle different PDF.js versions
+
+- [ ] Annotation Tool Implementation
+  - [ ] Add FreeText annotation support via native PDF.js
   - [ ] Create Signature annotation capability
   - [ ] Implement Highlight annotation functionality
   - [ ] Design annotation toolbar interface with styled modes
-- [ ] Optimize mobile experience
+
+- [ ] Debugging and Testing Framework
+  - [ ] Create logging helpers specific to the annotation system
+  - [ ] Create test PDFs with different annotation types
+  - [ ] Document expected behaviors for each annotation interaction
+  - [ ] Implement feature detection for annotation capabilities
+  - [ ] Add clear user messaging for annotation limitations
+  
+- [ ] Mobile and Persistence Optimizations
   - [ ] Test and optimize touch interactions for annotations
   - [ ] Add mobile-responsive toolbar positioning
-  - [ ] Verify zoom behavior with annotations
-  - [ ] Implement proper gesture handling
-- [ ] Add annotation persistence
   - [ ] Configure annotation saving in PDF format
-  - [ ] Implement annotation serialization/deserialization
+  - [ ] Implement annotation serialization/deserialization 
   - [ ] Test persistence between page navigations
   - [ ] Document browser limitations for client-side PDF downloads on mobile
+
 - [ ] Future server-side features
   - [ ] Plan for server-side email delivery of annotated PDFs
   - [ ] Research secure storage options for temporary document storage
@@ -518,10 +543,200 @@ The DirectPDFViewer implementation provides the core features we need with the f
 - Search capability
 - Annotation tools integration
 - Mobile touch gestures
-- Keyboard shortcuts
-- Accessibility improvements
+- Keyboard navigation shortcuts
+
+### PDF.js Native Annotations Implementation Plan
+
+Based on deep research into successful implementations of PDF.js annotations, we've developed the following detailed plan for implementing native PDF.js annotations in our DirectPDFViewer component.
+
+#### 1. Core Architecture and Global Environment Setup
+
+**1.1 PDF.js Global Environment**
+- Create a dedicated `PDFJSInitializer` module that:
+  - Configures the PDF.js worker path exactly once
+  - Ensures version consistency between worker and main library
+  - Sets up global PDFViewerApplication object structure
+  - Creates required global parameters and polyfills
+
+**1.2 Complete Object Hierarchy**
+- Implement the full PDF.js viewer object hierarchy:
+  ```javascript
+  window.PDFViewerApplication = {
+    pdfViewer: {
+      currentPageNumber: 1,
+      pagesCount: 0,
+      currentScale: 1,
+      eventBus: eventBus,
+      linkService: linkService,
+      annotationStorage: annotationStorage,
+      annotationEditorUIManager: annotationEditorUIManager,
+      ...
+    },
+    pdfDocument: null,
+    eventBus: eventBus,
+    ...
+  };
+  ```
+
+**1.3 Event System**
+- Create a full PDF.js-compatible EventBus implementation:
+  ```javascript
+  class EventBus {
+    constructor() {
+      this._listeners = Object.create(null);
+    }
+    
+    on(eventName, listener) { /* Implementation */ }
+    off(eventName, listener) { /* Implementation */ }
+    dispatch(eventName, data) { /* Implementation */ }
+    ...
+  }
+  ```
+
+#### 2. Annotation Component Improvements
+
+**2.1 Complete AnnotationStorage Implementation**
+```javascript
+class AnnotationStorage {
+  constructor() {
+    this._storage = new Map();
+    this._modified = new Set();
+    this._resetModified();
+  }
+  
+  // Required methods
+  getValue(key) { /* Implementation */ }
+  setValue(key, value) { /* Implementation */ }
+  getAll() { /* Implementation */ }
+  size() { /* Implementation */ }
+  delete(key) { /* Implementation */ }
+  
+  // PDF.js 3.x required methods
+  resetModified() { /* Implementation */ }
+  getModified() { /* Implementation */ }
+  ...
+}
+```
+
+**2.2 Annotation UI Manager**
+```javascript
+class AnnotationEditorUIManager {
+  constructor(options) {
+    this.eventBus = options.eventBus;
+    this.annotationStorage = options.annotationStorage;
+    this.currentPageIndex = 0;
+    this.editorMode = 0; // 0=disabled, 1=text, 2=ink, etc.
+    
+    // Important parameters required by PDF.js
+    this.fieldObjects = {};
+    this.l10n = null;
+    this.accessibilityManager = null;
+    ...
+  }
+  
+  // Required methods
+  updateMode(mode) { /* Implementation */ }
+  updateParams(params) { /* Implementation */ }
+  ...
+}
+```
+
+**2.3 Layer Parameter Objects**
+Create proper parameter objects for all annotation layers:
+```javascript
+// Annotation Layer Parameters
+const annotationLayerParams = {
+  viewport: viewport.clone({ dontFlip: true }),
+  div: annotationLayerElement,
+  page: pdfPage,
+  linkService: linkService,
+  renderInteractiveForms: true,
+  // Additional required parameters
+  l10n: null,
+  accessibilityManager: null,
+  annotationCanvasMap: null,
+  ...
+};
+
+// Annotation Editor Layer Parameters
+const editorLayerParams = {
+  viewport: viewport.clone({ dontFlip: true }),
+  div: annotationEditorLayerElement,
+  page: pdfPage,
+  mode: annotationMode,
+  uiManager: annotationEditorUIManager,
+  // These must exist and not be undefined
+  accessibilityManager: null,
+  annotationLayer: null,
+  l10n: null,
+  fieldObjects: {}, // Empty object instead of undefined
+  ...
+};
+```
+
+#### 3. Integration and Defensive Implementation
+
+**3.1 Version Compatibility Layer**
+```javascript
+// Detect PDF.js version and adjust implementation
+const pdfJsVersion = pdfjsLib.version || '0.0.0';
+const majorVersion = parseInt(pdfJsVersion.split('.')[0], 10);
+
+// Different implementations based on version
+if (majorVersion >= 3) {
+  // PDF.js 3.x implementation
+  ...
+} else if (majorVersion === 2) {
+  // PDF.js 2.x implementation
+  ...
+} else {
+  // Fallback implementation
+  ...
+}
+```
+
+**3.2 Complete Implementation Guidelines**
+
+Our implementation will follow these core principles:
+1. **Exact API Matching**: Always match PDF.js API exactly, without partial mocks
+2. **Proper Initialization Order**: Follow the exact initialization sequence PDF.js expects
+3. **Complete Parameters**: Always provide all required parameters, even if using empty objects
+4. **Defensive Programming**: Extensively check for undefined properties before access
+5. **Early Initialization**: Set up the PDF.js environment before rendering components
+6. **Global State Management**: Maintain proper global state that PDF.js components expect
+
+#### 4. Testing and Debugging Framework
+
+**4.1 Enhanced Debugging**
+Add detailed logging for annotation-specific operations:
+```javascript
+function debugAnnotations(message, data) {
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[Annotations] ${message}`, data || '');
+  }
+}
+```
+
+**4.2 Test Documents**
+Create test PDFs with various annotation types to verify functionality.
+
+**4.3 Feature Detection**
+```javascript
+// Detect annotation support
+function detectAnnotationSupport() {
+  return {
+    annotationLayer: typeof pdfjsLib.AnnotationLayer === 'function',
+    annotationEditor: typeof pdfjsLib.AnnotationEditorLayer === 'function', 
+    freeText: true, // Always available in PDF.js 3.x
+    ink: true,      // Always available in PDF.js 3.x
+    ...
+  };
+}
+```
 
 #### Implementation Timeline
+
+- Accessibility improvements
 
 1. **Phase 1: Core Implementation (Completed)**
    - ✓ Create DirectPDFViewer component using direct PDF.js integration
