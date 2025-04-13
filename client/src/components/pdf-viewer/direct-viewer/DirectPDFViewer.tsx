@@ -25,6 +25,18 @@ import { getAnnotationMode, PDFRenderContextOptions, AnnotationMode } from '../u
 import { useAnnotationState } from '../hooks/useAnnotationState';
 import AnnotationToolbar from '../annotations/AnnotationToolbar';
 
+// Import annotation system
+import { pdfEventBus } from '../utils/EventBus';
+import { SimpleLinkService } from '../utils/LinkService';
+import { 
+  initializeAnnotationSystem, 
+  updateAnnotationEditorMode,
+  updateAnnotationPage,
+  cleanupAnnotationSystem,
+  isAnnotationSystemInitialized
+} from '../utils/AnnotationManager';
+import NativeAnnotationLayer from '../annotations/NativeAnnotationLayer';
+
 // For TypeScript, we'll use 'any' types to avoid type conflicts
 // The specific PDF.js types can cause issues with different versions
 interface SimplePDFDocumentProxy {
