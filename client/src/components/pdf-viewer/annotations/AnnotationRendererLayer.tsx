@@ -94,9 +94,9 @@ const AnnotationRendererLayer: React.FC<AnnotationRendererLayerProps> = ({
     const parameters = {
       viewport: viewport.clone({ dontFlip: false }),
       div: annotationLayerRef.current,
-      annotations: null,
+      annotations: [], // Initialize with empty array instead of null
       page: pdfPage,
-      linkService: window.PDFViewerApplication?.pdfViewer?.linkService || null,
+      linkService: window.PDFViewerApplication?.pdfViewer?.linkService || getLinkService() || null,
       downloadManager: null,
       // Include fields needed for PDF.js annotation layer
       annotationStorage: getAnnotationStorage() || null,
@@ -106,13 +106,17 @@ const AnnotationRendererLayer: React.FC<AnnotationRendererLayerProps> = ({
       fieldObjects: {}, // Critical: this prevents the "params.fieldObjects is undefined" error
       annotationCanvasMap: null,
       accessibilityManager: null,
+      // PDF.js 3.x specific parameters
+      isEditable: isEditable, // Pass isEditable directly as a parameter 
+      xfaHtml: null,
+      textLayer: null,
+      annotationEditorUIManager: window.PDFViewerApplication?.annotationEditorUIManager,
     };
     
     // Set up annotation layer (using type assertion to bypass strict type checking)
     // @ts-ignore - Ignoring type checking for PDF.js parameters
     const annotationLayer = new pdfjsLib.AnnotationLayer({
-      ...parameters,
-      isEditable,
+      ...parameters
     });
     
     // Set up editor layer if editable

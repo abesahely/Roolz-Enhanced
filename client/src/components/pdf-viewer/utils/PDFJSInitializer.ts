@@ -160,8 +160,9 @@ function createAnnotationStorage() {
  * Create a proper AnnotationEditorUIManager implementation
  */
 function createAnnotationEditorUIManager(annotationStorage: any) {
-  return {
-    // Properties
+  // Create a comprehensive editor manager with all required methods
+  const manager = {
+    // Core properties
     eventBus: pdfEventBus,
     annotationStorage,
     currentPageIndex: 0,
@@ -169,8 +170,34 @@ function createAnnotationEditorUIManager(annotationStorage: any) {
     
     // Important parameters required by PDF.js
     fieldObjects: {}, // Critical - this empty object fixes the "params.fieldObjects is undefined" error
-    l10n: null,
+    l10n: {
+      get: (key: string, _args = null, fallback = '') => fallback || key
+    },
     accessibilityManager: null,
+    
+    // Track active editor and parameters
+    activeEditor: null,
+    editors: [] as any[],
+    currentEditor: null,
+    editingState: false,
+    
+    // Track parameters for various editor types
+    editorParams: {
+      freeText: {
+        fontSize: 11,
+        fontFamily: 'Helvetica, Arial, sans-serif',
+        color: '#000000',
+        backgroundColor: '#F4871F33',
+      },
+      ink: {
+        thickness: 3,
+        color: '#F4871F',
+        opacity: 1,
+      },
+      highlight: {
+        color: '#F4871F80',
+      }
+    },
     
     // Required methods
     updateMode(mode: number) {
@@ -184,28 +211,98 @@ function createAnnotationEditorUIManager(annotationStorage: any) {
     },
     
     updateParams(params: any) {
-      debugPDFJS('AnnotationEditorUIManager params updated', params);
+      // Store parameters by editor type
+      if (params) {
+        // Store parameters appropriately
+        debugPDFJS('AnnotationEditorUIManager params updated', params);
+        
+        // Save specific color parameters
+        if (params.textColor) {
+          this.editorParams.freeText.color = params.textColor;
+        }
+        if (params.backgroundColor) {
+          this.editorParams.freeText.backgroundColor = params.backgroundColor;
+        }
+        if (params.fontSize) {
+          this.editorParams.freeText.fontSize = params.fontSize;
+        }
+        if (params.fontFamily) {
+          this.editorParams.freeText.fontFamily = params.fontFamily;
+        }
+        if (params.inkColor) {
+          this.editorParams.ink.color = params.inkColor;
+        }
+        if (params.inkThickness) {
+          this.editorParams.ink.thickness = params.inkThickness;
+        }
+        if (params.highlightColor) {
+          this.editorParams.highlight.color = params.highlightColor;
+        }
+      }
     },
     
-    // Additional methods that might be needed
+    // Editor state management
     setEditingState(isEditing: boolean) {
       // Notify that editing state changed
+      this.editingState = isEditing;
       pdfEventBus.dispatch('annotationeditorstatechanged', {
         isEditing,
         source: this,
       });
     },
     
+    // Editor registration
     registerEditor(editor: any) {
       // For registering annotation editors
-      debugPDFJS('Editor registered', editor);
+      if (editor && !this.editors.includes(editor)) {
+        this.editors.push(editor);
+        this.currentEditor = editor;
+        debugPDFJS('Editor registered', editor);
+      }
     },
     
-    // Safety method to prevent undefined errors
+    unregisterEditor(editor: any) {
+      // Remove an editor when it's no longer needed
+      const index = this.editors.indexOf(editor);
+      if (index !== -1) {
+        this.editors.splice(index, 1);
+        if (this.currentEditor === editor) {
+          this.currentEditor = this.editors[0] || null;
+        }
+      }
+    },
+    
+    // Access current editor
     getEditor() {
-      return null;
+      return this.currentEditor;
+    },
+    
+    // Add any methods that might be called by PDF.js
+    isActive: () => true,
+    
+    // Handle annotations being created
+    onEditingAction(action: string, data: any = null) {
+      // Dispatch annotation events
+      if (action === 'create' && data) {
+        pdfEventBus.dispatch('annotationcreated', {
+          source: this,
+          annotation: data,
+        });
+      } else if (action === 'edit' && data) {
+        pdfEventBus.dispatch('annotationedited', {
+          source: this,
+          annotation: data,
+        });
+      } else if (action === 'delete' && data) {
+        pdfEventBus.dispatch('annotationdeleted', {
+          source: this,
+          annotation: data,
+        });
+      }
     },
   };
+  
+  return manager;
 }
 
 /**
