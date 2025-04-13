@@ -154,18 +154,6 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
         <Highlighter size={20} />
       </button>
       
-      {/* Drawing Tool */}
-      <button
-        style={{
-          ...buttonStyle,
-          ...(isActive(AnnotationModes.DRAWING) ? activeButtonStyle : {})
-        }}
-        onClick={() => handleModeToggle(AnnotationModes.DRAWING)}
-        title="Draw on PDF"
-      >
-        <PenLine size={20} />
-      </button>
-      
       {/* Signature Tool */}
       <button
         style={{
@@ -176,18 +164,6 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
         title="Add Signature"
       >
         <PenTool size={20} />
-      </button>
-      
-      {/* Checkbox Tool */}
-      <button
-        style={{
-          ...buttonStyle,
-          ...(isActive(AnnotationModes.CHECKBOX) ? activeButtonStyle : {})
-        }}
-        onClick={() => handleModeToggle(AnnotationModes.CHECKBOX)}
-        title="Add Checkbox"
-      >
-        <CheckSquare size={20} />
       </button>
       
       {/* Divider */}

@@ -8,6 +8,14 @@ import { pdfEventBus } from './EventBus';
 import { initializePDFJS, isPDFJSInitialized, cleanupPDFJS } from './PDFJSInitializer';
 import { EditorModes, createEditorParameters } from './annotationConfig';
 
+// Add type declaration for the window object to include the PDFViewerApplication
+declare global {
+  interface Window {
+    PDFViewerApplication?: any;
+    pdfjsLib?: any;
+  }
+}
+
 /**
  * AnnotationManager - Manages PDF.js annotation functionality
  */
@@ -243,30 +251,94 @@ export const annotationManager = new AnnotationManager();
 
 /**
  * Initialize the annotation system with a PDF document
+ * Enhanced with detailed error logging and recovery options
  */
 export function initializeAnnotationSystem(pdfDoc: any, initialPage: number = 1): boolean {
   try {
     if (!isPDFJSInitialized()) {
+      console.log('PDF.js not initialized, attempting initialization');
       const success = initializePDFJS();
       if (!success) {
+        console.error('Failed to initialize PDF.js environment');
+        
+        // Log detailed diagnostic information
+        if (process.env.NODE_ENV !== 'production') {
+          console.debug('[AnnotationSystem] Initialization diagnostics:', {
+            documentProvided: !!pdfDoc,
+            initialPage,
+            globalPDFJSAvailable: typeof window.pdfjsLib !== 'undefined',
+            windowPDFViewerApplication: !!window.PDFViewerApplication,
+            browserEnv: navigator.userAgent
+          });
+        }
+        
         return false;
       }
+    }
+    
+    // Validate the global object structure after initialization
+    if (!window.PDFViewerApplication?.pdfViewer) {
+      console.warn('PDF Viewer structure incomplete after initialization');
     }
     
     // If we get here, the annotation system is initialized
     return true;
   } catch (error) {
     console.error('Error initializing annotation system:', error);
+    
+    // Additional error information in development
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[AnnotationSystem] Error details:', {
+        errorType: error instanceof Error ? error.name : typeof error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        documentProvided: !!pdfDoc,
+        initialPage
+      });
+    }
+    
     return false;
   }
 }
 
 /**
- * Update the annotation editor mode
+ * Update the annotation editor mode with enhanced error handling
+ * This function safely converts string modes to numeric modes and applies them
+ * @param mode The mode to set, can be a number (EditorMode) or a string ('text', 'highlight', etc.)
+ * @returns boolean indicating if the mode was successfully set
  */
-export function updateAnnotationEditorMode(mode: any): void {
-  const editorMode = typeof mode === 'number' ? mode : getAnnotationModeFromString(mode);
-  annotationManager.setMode(editorMode);
+export function updateAnnotationEditorMode(mode: any): boolean {
+  try {
+    // Convert string modes to EditorModes numbers
+    const editorMode = typeof mode === 'number' ? mode : getAnnotationModeFromString(mode);
+    
+    // Apply the mode with error handling
+    annotationManager.setMode(editorMode);
+    
+    // Verify the mode was set correctly
+    if (annotationManager.currentMode !== editorMode) {
+      console.warn('[AnnotationManager] Mode not set correctly', { 
+        requested: editorMode, 
+        actual: annotationManager.currentMode 
+      });
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('[AnnotationManager] Failed to update annotation mode:', error);
+    
+    // Log detailed information in development mode
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('[AnnotationManager] Mode update diagnostics:', {
+        requestedMode: mode,
+        modeType: typeof mode,
+        annotationManagerInitialized: isAnnotationSystemInitialized(),
+        uiManagerAvailable: !!window.PDFViewerApplication?.pdfViewer?.annotationEditorUIManager
+      });
+    }
+    
+    return false;
+  }
 }
 
 /**
