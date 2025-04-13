@@ -37,6 +37,9 @@ export function initializeAnnotationSystem(
       setValue: (key: string, value: any) => {},
       size: 0,
       delete: (key: string) => false,
+      // Add additional properties that may be required
+      resetModified: () => {},
+      getModified: () => false
     };
     
     // Create a simplified annotation editor UI manager object
@@ -47,7 +50,12 @@ export function initializeAnnotationSystem(
       },
       updateParams: (params: any) => {
         console.log('[AnnotationManager] Params updated:', params);
-      }
+      },
+      // Add additional safe placeholder properties
+      fieldObjects: {},
+      l10n: null,
+      accessibilityManager: null,
+      annotationStorage
     };
     
     // Initialize global PDF.js application if it doesn't exist
