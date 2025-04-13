@@ -104,8 +104,14 @@ export class AnnotationManager {
    * Set editor parameters
    */
   public setEditorParameters(params: Record<string, any>): void {
+    // Ensure params has a fieldObjects property to prevent the "params.fieldObjects is undefined" error
+    const safeParams = {
+      ...params,
+      fieldObjects: params.fieldObjects || {}
+    };
+    
     // Create a complete parameter object with all required fields
-    const completeParams = createEditorParameters(params);
+    const completeParams = createEditorParameters(safeParams);
     
     // Update our local state
     this._editorParams = { ...this._editorParams, ...completeParams };
@@ -115,6 +121,11 @@ export class AnnotationManager {
       try {
         // Use type assertion to bypass TypeScript checking
         (window.PDFViewerApplication.pdfViewer.annotationEditorUIManager as any).updateParams(completeParams);
+        
+        // Additionally, explicitly set fieldObjects on the UI manager to ensure it's available
+        if ((window.PDFViewerApplication.pdfViewer.annotationEditorUIManager as any).fieldObjects === undefined) {
+          (window.PDFViewerApplication.pdfViewer.annotationEditorUIManager as any).fieldObjects = {};
+        }
       } catch (error) {
         console.error('Error updating annotation editor parameters:', error);
       }
