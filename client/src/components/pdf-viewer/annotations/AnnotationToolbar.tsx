@@ -1,16 +1,18 @@
 import React from 'react';
 import { BRAND_COLORS } from '@/lib/constants';
 
+import { AnnotationMode } from '../utils/annotationConfig';
+
 interface AnnotationToolbarProps {
   /**
    * Current annotation mode
    */
-  currentMode: string | null;
+  currentMode: AnnotationMode;
   
   /**
    * Function to handle mode changes
    */
-  onModeChange: (mode: string | null) => void;
+  onModeChange: (mode: AnnotationMode) => void;
   
   /**
    * Function to handle saving annotations
@@ -44,7 +46,7 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
   if (!isVisible) return null;
 
   // Utility function to determine button background color
-  const getButtonStyle = (mode: string) => {
+  const getButtonStyle = (mode: AnnotationMode) => {
     return currentMode === mode 
       ? { backgroundColor: BRAND_COLORS.ORANGE } 
       : { backgroundColor: 'transparent' };

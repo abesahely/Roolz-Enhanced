@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DirectPDFViewer } from '@/components/pdf-viewer/direct-viewer';
 import { DragDropUpload } from '@/components/ui/drag-drop-upload';
 import { ALLOWED_FILE_TYPES, MAX_FILE_SIZE, BRAND_COLORS } from '@/lib/constants';
+import { toast } from '@/hooks/use-toast';
 
 /**
  * TestDirectPDFViewer - Test page for the direct PDF.js viewer
@@ -35,6 +36,17 @@ export default function TestDirectPDFViewer() {
   // Close viewer
   const handleClose = () => {
     setViewerOpen(false);
+  };
+  
+  // Handle saving with annotations
+  const handleSaveWithAnnotations = () => {
+    // In a real application, this would save the PDF with annotations
+    // For this test page, we'll just show a toast notification
+    toast({
+      title: "Annotations saved",
+      description: "Your annotations have been saved successfully",
+      variant: "default",
+    });
   };
 
   return (
@@ -74,6 +86,7 @@ export default function TestDirectPDFViewer() {
             onClose={handleClose}
             initialPage={currentPage}
             onPageChange={handlePageChange}
+            onSaveWithAnnotations={handleSaveWithAnnotations}
             className="w-full h-full"
           />
         </div>

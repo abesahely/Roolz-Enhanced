@@ -1,92 +1,83 @@
 /**
- * Annotation configuration utilities
- * 
- * This file contains constants and utility functions for working with PDF.js annotations
+ * PDF.js annotation utilities and configuration
  */
 
-// Import PDF.js directly from node_modules to ensure version consistency (3.11.174)
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
+import { BRAND_COLORS } from '@/lib/constants';
 
 /**
- * Annotation types supported by PDF.js
- * These are mapped to the AnnotationEditorType enum from PDF.js
+ * Type for annotation mode
  */
-export const ANNOTATION_MODES = {
-  NONE: 0, // No annotation active
-  DISABLE: -1, // Annotations explicitly disabled
-  FREETEXT: 3, // Text box annotations
-  HIGHLIGHT: 9, // Text highlighting (Note: may need to use TextMarkup in some versions)
-  INK: 15, // Freehand drawing 
-  STAMP: 13, // Stamp annotations (for signature)
-};
+export type AnnotationMode = 'text' | 'highlight' | 'signature' | null;
 
 /**
- * Get the PDF.js annotation editor type based on a string mode
- * 
- * @param mode The annotation mode as a string
- * @returns The PDF.js AnnotationEditorType value
+ * Extended interface for PDF.js render context options to support annotations
  */
-export function getAnnotationMode(mode: string | null): number {
+export interface PDFRenderContextOptions {
+  canvasContext: CanvasRenderingContext2D;
+  viewport: any;
+  annotationMode?: number;
+  renderInteractiveForms?: boolean;
+  enhanceTextSelection?: boolean;
+  renderAnnotationEditorLayers?: boolean;
+}
+
+/**
+ * PDF.js annotation editor types (integer constants)
+ */
+export enum AnnotationEditorType {
+  NONE = 0,         // No annotation editor
+  FREETEXT = 3,     // Free text annotation
+  HIGHLIGHT = 4,    // Highlight text
+  STAMP = 13,       // Stamp (for signature)
+  INK = 15          // Ink (for drawing)
+}
+
+/**
+ * Get PDF.js annotation editor type from string mode
+ * 
+ * @param mode Current annotation mode
+ * @returns PDF.js annotation editor type constant
+ */
+export function getAnnotationMode(mode: AnnotationMode): number {
   switch (mode) {
     case 'text':
-      return ANNOTATION_MODES.FREETEXT;
+      return AnnotationEditorType.FREETEXT;
     case 'highlight':
-      return ANNOTATION_MODES.HIGHLIGHT;
+      return AnnotationEditorType.HIGHLIGHT;
     case 'signature':
-      return ANNOTATION_MODES.STAMP;
-    case 'ink':
-      return ANNOTATION_MODES.INK;
-    case 'disable':
-      return ANNOTATION_MODES.DISABLE;
-    case 'none':
+      return AnnotationEditorType.STAMP;
     default:
-      return ANNOTATION_MODES.NONE;
+      return AnnotationEditorType.NONE;
   }
 }
 
 /**
- * Check if an annotation mode requires text selection
- */
-export function requiresTextSelection(mode: string | null): boolean {
-  return mode === 'highlight';
-}
-
-/**
- * Check if an annotation mode is active
- */
-export function isAnnotationModeActive(mode: string | null): boolean {
-  return mode !== null && mode !== 'none';
-}
-
-/**
- * Configure PDF.js annotation editor
+ * Get annotation style properties based on mode
  * 
- * @param options Annotation configuration options
+ * @param mode Annotation mode
+ * @returns Style object for the annotation
  */
-export type AnnotationStyleOptions = {
-  fontSize?: number;
-  fontFamily?: string; 
-  fillColor?: string;
-  strokeColor?: string;
-  strokeWidth?: number;
-  textColor?: string;
-};
-
-/**
- * Standard render context options for PDF.js
- */
-export interface PDFRenderContextOptions {
-  canvasContext: CanvasRenderingContext2D;
-  viewport: any; // PDFViewport type
-  annotationMode?: number;
-  annotationEditorUIManager?: any;
-  enableScripting?: boolean;
-  renderInteractiveForms?: boolean;
-  transform?: number[];
-  background?: any;
-  intent?: string;
-  enhanceTextSelection?: boolean;
-  renderTextLayer?: boolean;
-  renderAnnotations?: boolean;
-  renderAnnotationEditorLayers?: boolean;
+export function getAnnotationStyle(mode: AnnotationMode): Record<string, any> {
+  switch (mode) {
+    case 'text':
+      return {
+        backgroundColor: `${BRAND_COLORS.ORANGE}33`, // 20% opacity
+        color: BRAND_COLORS.NAVY,
+        fontSize: '12px',
+        fontFamily: 'Montserrat, sans-serif',
+        borderColor: BRAND_COLORS.ORANGE
+      };
+    case 'highlight':
+      return {
+        color: `${BRAND_COLORS.ORANGE}80`, // 50% opacity
+      };
+    case 'signature':
+      return {
+        fontFamily: 'Dancing Script, cursive',
+        color: BRAND_COLORS.NAVY,
+        fontSize: '18px'
+      };
+    default:
+      return {};
+  }
 }

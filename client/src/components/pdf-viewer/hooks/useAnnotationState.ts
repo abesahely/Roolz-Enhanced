@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { getAnnotationMode, isAnnotationModeActive } from '../utils/annotationConfig';
+import { useState, useCallback } from 'react';
+import { AnnotationMode, getAnnotationMode } from '../utils/annotationConfig';
 
 /**
  * Hook for managing annotation state
@@ -10,56 +10,56 @@ import { getAnnotationMode, isAnnotationModeActive } from '../utils/annotationCo
  * - Getting the PDF.js annotation editor type
  */
 export function useAnnotationState() {
-  // Annotation mode - null means no annotation active
-  const [annotationMode, setAnnotationMode] = useState<string | null>(null);
+  // Current annotation mode
+  const [annotationMode, setAnnotationMode] = useState<AnnotationMode>(null);
   
-  // Whether annotation mode is active
+  // Track if user is actively annotating
   const [isAnnotating, setIsAnnotating] = useState<boolean>(false);
   
-  // Track if annotations have been modified and need saving
+  // Track if annotations have been modified
   const [annotationsModified, setAnnotationsModified] = useState<boolean>(false);
   
-  // Toggle between annotation modes
-  const toggleAnnotationMode = useCallback((mode: string | null) => {
-    if (annotationMode === mode) {
-      // Turn off annotation mode if the same mode is selected
+  /**
+   * Toggle annotation mode
+   * 
+   * If the mode is already active, turn it off
+   * Otherwise, activate the new mode
+   */
+  const toggleAnnotationMode = useCallback((mode: AnnotationMode) => {
+    // If trying to select the currently active mode, turn it off
+    if (mode === annotationMode) {
       setAnnotationMode(null);
       setIsAnnotating(false);
     } else {
-      // Set the new annotation mode
-      setAnnotationMode(mode);
-      setIsAnnotating(true);
+      // Type safety check to make sure we only set valid annotation modes
+      if (mode === 'text' || mode === 'highlight' || mode === 'signature' || mode === null) {
+        setAnnotationMode(mode);
+        setIsAnnotating(mode !== null);
+      }
     }
   }, [annotationMode]);
   
-  // Get annotation editor type for PDF.js
+  /**
+   * Get PDF.js annotation editor type
+   * 
+   * Converts our string mode to PDF.js numeric constants
+   */
   const getAnnotationEditorType = useCallback(() => {
     return getAnnotationMode(annotationMode);
   }, [annotationMode]);
   
-  // Mark annotations as modified
+  /**
+   * Mark annotations as modified
+   */
   const markAnnotationsModified = useCallback(() => {
     setAnnotationsModified(true);
   }, []);
   
-  // Reset modified state after saving
+  /**
+   * Reset annotations modified state after saving
+   */
   const resetAnnotationsModified = useCallback(() => {
     setAnnotationsModified(false);
-  }, []);
-  
-  // Effect to listen for editor changes
-  useEffect(() => {
-    // Add listeners for annotation editor changes to detect modifications
-    const handleAnnotationChange = () => {
-      setAnnotationsModified(true);
-    };
-    
-    // PDF.js dispatches 'annotationeditorchange' events when annotations change
-    document.addEventListener('annotationeditorchange', handleAnnotationChange);
-    
-    return () => {
-      document.removeEventListener('annotationeditorchange', handleAnnotationChange);
-    };
   }, []);
   
   return {
