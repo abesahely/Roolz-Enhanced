@@ -461,15 +461,32 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       
       // Determine scale based on zoom mode - using our tracked zoom mode for consistency
       let scale: number;
+      
+      // First, get raw dimensions to calculate correct scales
+      const rawWidth = viewport.width;
+      const rawHeight = viewport.height;
+      
+      // Apply a small margin for better visual appearance
+      const margin = 20; // 10px on each side
+      const adjustedContainerWidth = containerWidth - margin;
+      const adjustedContainerHeight = containerHeight - margin;
+      
+      // Calculate scales directly from the raw dimensions
+      const fitWidthScale = adjustedContainerWidth / rawWidth;
+      const fitPageScale = Math.min(
+        adjustedContainerWidth / rawWidth,
+        adjustedContainerHeight / rawHeight
+      );
+      
       switch (zoomModeToUse) {
         case 'fit-width':
-          // Use the horizontal scale to fit the width
-          scale = horizontalScale;
+          // Use the fit width scale
+          scale = fitWidthScale;
           debugPDFViewer('Using fit-width scale', { scale });
           break;
         case 'fit-page':
           // Use the smaller scale to ensure the entire page fits
-          scale = Math.min(horizontalScale, verticalScale);
+          scale = fitPageScale;
           debugPDFViewer('Using fit-page scale', { scale });
           break;
         case 'custom':
