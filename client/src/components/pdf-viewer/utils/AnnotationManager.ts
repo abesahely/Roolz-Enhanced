@@ -1,170 +1,301 @@
 /**
- * PDF.js Annotation Manager
+ * Annotation Manager
  * 
- * This module provides utilities for initializing and managing
- * the PDF.js annotation editor.
+ * This module provides a centralized manager for PDF.js annotations,
+ * handling editor mode switching, parameter configuration, and event coordination.
  */
-
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 import { pdfEventBus } from './EventBus';
-import { AnnotationMode, getAnnotationMode } from './annotationConfig';
-
-// Store a reference to the annotation storage
-let annotationStorage: any = null;
-
-// Store a reference to the annotation editor UI manager
-let annotationEditorUIManager: any = null;
+import { initializePDFJS, isPDFJSInitialized, cleanupPDFJS } from './PDFJSInitializer';
+import { EditorModes, createEditorParameters } from './annotationConfig';
 
 /**
- * Initialize the annotation system for a PDF document
- * 
- * @param pdfDocument The PDF document to initialize annotations for
- * @param initialPage The initial page number (1-indexed)
- * @returns True if initialization was successful
+ * AnnotationManager - Manages PDF.js annotation functionality
  */
-export function initializeAnnotationSystem(
-  pdfDocument: any, 
-  initialPage: number = 1
-): boolean {
-  try {
-    console.log('[AnnotationManager] Initializing annotation system');
-    
-    // For now, create a simple storage object
-    // This is a simplified version since we don't have direct access to AnnotationStorage
-    annotationStorage = {
-      getAll: () => ({}),
-      getValue: (key: string) => null,
-      setValue: (key: string, value: any) => {},
-      size: 0,
-      delete: (key: string) => false,
-      // Add additional properties that may be required
-      resetModified: () => {},
-      getModified: () => false
-    };
-    
-    // Create a simplified annotation editor UI manager object
-    // In a full implementation, we would use the proper classes from PDF.js
-    annotationEditorUIManager = {
-      updateMode: (mode: number) => {
-        console.log('[AnnotationManager] Mode updated to:', mode);
-      },
-      updateParams: (params: any) => {
-        console.log('[AnnotationManager] Params updated:', params);
-      },
-      // Add additional safe placeholder properties
-      fieldObjects: {},
-      l10n: null,
-      accessibilityManager: null,
-      annotationStorage
-    };
-    
-    // Initialize global PDF.js application if it doesn't exist
-    if (!window.PDFViewerApplication) {
-      window.PDFViewerApplication = {
-        pdfViewer: {
-          currentPageNumber: initialPage,
-          annotationEditorUIManager,
-        },
-      };
+export class AnnotationManager {
+  private _currentMode = EditorModes.NONE;
+  private _isInitialized = false;
+  private _editorParams: Record<string, any> = {};
+  private _callbacks: Record<string, Function[]> = {
+    modeChange: [],
+    annotationCreated: [],
+    annotationDeleted: [],
+    annotationSelected: [],
+  };
+
+  constructor() {
+    // Initialize the manager
+    this._initialize();
+  }
+
+  /**
+   * Initialize the annotation manager
+   * Sets up event listeners and PDF.js environment
+   */
+  private _initialize(): void {
+    // Only initialize once
+    if (this._isInitialized) {
+      return;
+    }
+
+    // First ensure PDF.js global environment is set up
+    if (!isPDFJSInitialized()) {
+      initializePDFJS();
+    }
+
+    // Set up listeners for annotation events
+    pdfEventBus.on('annotationeditormodechanged', (event) => {
+      // Update the current mode when it changes externally
+      if (event && typeof event.mode === 'number') {
+        this._currentMode = event.mode;
+        this._notifyModeChange();
+      }
+    });
+
+    pdfEventBus.on('annotationeditorparamschanged', (event) => {
+      // Update our params when they change externally
+      if (event && event.params) {
+        this._editorParams = { ...this._editorParams, ...event.params };
+      }
+    });
+
+    // Mark as initialized
+    this._isInitialized = true;
+  }
+
+  /**
+   * Get the current annotation editor mode
+   */
+  public get currentMode(): EditorModes {
+    return this._currentMode;
+  }
+
+  /**
+   * Set the annotation editor mode
+   */
+  public setMode(mode: EditorModes): void {
+    if (this._currentMode === mode) {
+      return; // No change needed
+    }
+
+    // Update our local state
+    this._currentMode = mode;
+
+    // Notify PDF.js about the mode change
+    if (window.PDFViewerApplication?.pdfViewer?.annotationEditorUIManager) {
+      try {
+        // Use type assertion to bypass TypeScript checking
+        (window.PDFViewerApplication.pdfViewer.annotationEditorUIManager as any).updateMode(mode);
+      } catch (error) {
+        console.error('Error updating annotation editor mode:', error);
+      }
     } else {
-      // Update existing PDFViewerApplication
-      window.PDFViewerApplication.pdfViewer.currentPageNumber = initialPage;
-      window.PDFViewerApplication.pdfViewer.annotationEditorUIManager = annotationEditorUIManager;
+      // Direct event dispatch if UI manager not available
+      pdfEventBus.dispatch('annotationeditormodechanged', {
+        mode,
+        source: this,
+      });
+    }
+
+    // Notify our listeners
+    this._notifyModeChange();
+  }
+
+  /**
+   * Set editor parameters
+   */
+  public setEditorParameters(params: Record<string, any>): void {
+    // Create a complete parameter object with all required fields
+    const completeParams = createEditorParameters(params);
+    
+    // Update our local state
+    this._editorParams = { ...this._editorParams, ...completeParams };
+
+    // Notify PDF.js about the parameter change
+    if (window.PDFViewerApplication?.pdfViewer?.annotationEditorUIManager) {
+      try {
+        // Use type assertion to bypass TypeScript checking
+        (window.PDFViewerApplication.pdfViewer.annotationEditorUIManager as any).updateParams(completeParams);
+      } catch (error) {
+        console.error('Error updating annotation editor parameters:', error);
+      }
+    } else {
+      // Direct event dispatch if UI manager not available
+      pdfEventBus.dispatch('annotationeditorparamschanged', {
+        parameters: completeParams,
+        source: this,
+      });
+    }
+  }
+
+  /**
+   * Toggle the annotation editor mode
+   * If already in the specified mode, turn it off (set to NONE)
+   */
+  public toggleMode(mode: EditorModes): void {
+    if (this._currentMode === mode) {
+      this.setMode(EditorModes.NONE); // Turn off
+    } else {
+      this.setMode(mode); // Turn on the requested mode
+    }
+  }
+
+  /**
+   * Register a callback for mode changes
+   */
+  public onModeChange(callback: (mode: EditorModes) => void): void {
+    this._callbacks.modeChange.push(callback);
+  }
+
+  /**
+   * Register a callback for annotation creation
+   */
+  public onAnnotationCreated(callback: (annotation: any) => void): void {
+    this._callbacks.annotationCreated.push(callback);
+  }
+
+  /**
+   * Register a callback for annotation deletion
+   */
+  public onAnnotationDeleted(callback: (annotation: any) => void): void {
+    this._callbacks.annotationDeleted.push(callback);
+  }
+
+  /**
+   * Register a callback for annotation selection
+   */
+  public onAnnotationSelected(callback: (annotation: any) => void): void {
+    this._callbacks.annotationSelected.push(callback);
+  }
+
+  /**
+   * Clear a specific callback or all callbacks of a type
+   */
+  public clearCallbacks(type: string, callback?: Function): void {
+    if (!this._callbacks[type]) {
+      return;
+    }
+
+    if (callback) {
+      // Remove specific callback
+      const index = this._callbacks[type].indexOf(callback);
+      if (index !== -1) {
+        this._callbacks[type].splice(index, 1);
+      }
+    } else {
+      // Clear all callbacks of this type
+      this._callbacks[type] = [];
+    }
+  }
+
+  /**
+   * Notify all mode change listeners
+   */
+  private _notifyModeChange(): void {
+    for (const callback of this._callbacks.modeChange) {
+      try {
+        callback(this._currentMode);
+      } catch (error) {
+        console.error('Error in mode change callback:', error);
+      }
+    }
+  }
+
+  /**
+   * Clean up the annotation manager
+   */
+  public cleanup(): void {
+    if (!this._isInitialized) {
+      return;
+    }
+
+    // Clean up PDF.js global environment
+    cleanupPDFJS();
+
+    // Clear all callbacks
+    Object.keys(this._callbacks).forEach(key => {
+      this._callbacks[key] = [];
+    });
+
+    // Reset state
+    this._currentMode = EditorModes.NONE;
+    this._isInitialized = false;
+  }
+}
+
+// Create a singleton instance
+export const annotationManager = new AnnotationManager();
+
+/**
+ * Exported helper functions to match the existing API surface
+ * These make the AnnotationManager easier to use without having to import the class directly
+ */
+
+/**
+ * Initialize the annotation system with a PDF document
+ */
+export function initializeAnnotationSystem(pdfDoc: any, initialPage: number = 1): boolean {
+  try {
+    if (!isPDFJSInitialized()) {
+      const success = initializePDFJS();
+      if (!success) {
+        return false;
+      }
     }
     
-    console.log('[AnnotationManager] Annotation system initialized successfully');
+    // If we get here, the annotation system is initialized
     return true;
   } catch (error) {
-    console.error('[AnnotationManager] Failed to initialize annotation system:', error);
+    console.error('Error initializing annotation system:', error);
     return false;
   }
 }
 
 /**
  * Update the annotation editor mode
- * 
- * @param mode The annotation mode to set
- * @returns True if the mode was successfully updated
  */
-export function updateAnnotationEditorMode(mode: AnnotationMode): boolean {
-  try {
-    if (!window.PDFViewerApplication?.pdfViewer?.annotationEditorUIManager) {
-      console.warn('[AnnotationManager] Cannot update annotation mode: editor not initialized');
-      return false;
-    }
-    
-    const editorType = mode === null ? 0 : getAnnotationMode(mode);
-    console.log('[AnnotationManager] Updating annotation editor mode:', { mode, editorType });
-    
-    window.PDFViewerApplication.pdfViewer.annotationEditorUIManager.updateMode(editorType);
-    return true;
-  } catch (error) {
-    console.error('[AnnotationManager] Failed to update annotation editor mode:', error);
-    return false;
-  }
+export function updateAnnotationEditorMode(mode: any): void {
+  const editorMode = typeof mode === 'number' ? mode : getAnnotationModeFromString(mode);
+  annotationManager.setMode(editorMode);
 }
 
 /**
- * Update the current page for annotations
- * 
- * @param pageNumber The current page number (1-indexed)
+ * Update the current annotation page
  */
 export function updateAnnotationPage(pageNumber: number): void {
   if (window.PDFViewerApplication?.pdfViewer) {
-    window.PDFViewerApplication.pdfViewer.currentPageNumber = pageNumber;
+    // Use type assertion to bypass TypeScript checking
+    (window.PDFViewerApplication.pdfViewer as any).currentPageNumber = pageNumber;
   }
-}
-
-/**
- * Check if the annotation system is initialized
- * 
- * @returns True if the annotation system is initialized
- */
-export function isAnnotationSystemInitialized(): boolean {
-  return !!(
-    window.PDFViewerApplication?.pdfViewer?.annotationEditorUIManager && 
-    annotationStorage && 
-    annotationEditorUIManager
-  );
-}
-
-/**
- * Get the annotation storage
- * 
- * @returns The annotation storage or null if not initialized
- */
-export function getAnnotationStorage(): any {
-  return annotationStorage;
-}
-
-/**
- * Get the annotation editor UI manager
- * 
- * @returns The annotation editor UI manager or null if not initialized
- */
-export function getAnnotationEditorUIManager(): any {
-  return annotationEditorUIManager;
 }
 
 /**
  * Clean up the annotation system
  */
 export function cleanupAnnotationSystem(): void {
-  try {
-    if (annotationEditorUIManager) {
-      // Any cleanup methods for the annotation editor
-      annotationEditorUIManager = null;
-    }
-    
-    annotationStorage = null;
-    
-    // Clean up global reference
-    if (window.PDFViewerApplication?.pdfViewer?.annotationEditorUIManager) {
-      window.PDFViewerApplication.pdfViewer.annotationEditorUIManager = undefined;
-    }
-    
-    console.log('[AnnotationManager] Annotation system cleaned up');
-  } catch (error) {
-    console.error('[AnnotationManager] Error cleaning up annotation system:', error);
+  annotationManager.cleanup();
+}
+
+/**
+ * Check if the annotation system is initialized
+ */
+export function isAnnotationSystemInitialized(): boolean {
+  return isPDFJSInitialized();
+}
+
+/**
+ * Helper to convert string annotation modes to numeric editor modes
+ */
+function getAnnotationModeFromString(mode: string | null): EditorModes {
+  if (!mode) return EditorModes.NONE;
+  
+  switch (mode) {
+    case 'text':
+      return EditorModes.TEXT;
+    case 'highlight':
+      return EditorModes.HIGHLIGHT;
+    case 'drawing':
+      return EditorModes.INK;
+    default:
+      return EditorModes.NONE;
   }
 }

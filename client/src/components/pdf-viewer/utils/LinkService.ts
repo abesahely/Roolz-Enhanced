@@ -1,84 +1,112 @@
 /**
  * PDF.js LinkService Implementation
  * 
- * This is a minimal implementation of the LinkService required by PDF.js
- * for proper annotation functionality.
+ * This module provides a simplified implementation of PDF.js LinkService
+ * which is required for proper annotation functionality.
  */
 
 /**
- * SimpleLinkService class that provides the minimum interface needed
- * for the PDF.js annotation system.
+ * SimpleLinkService - A minimal implementation of the PDF.js LinkService
+ * that provides just enough functionality for annotations to work properly.
  */
 export class SimpleLinkService {
-  // This class implements methods required by PDF.js for annotation support
-
+  // Properties required by PDF.js
+  pagesCount: number = 0;
+  page: number = 1;
+  rotation: number = 0;
+  
+  // Event callbacks
+  onNavigate: ((dest: any) => void) | null = null;
+  onUpdateCurrentPage: ((page: number) => void) | null = null;
+  
   /**
-   * Get the current page
-   * 
-   * @returns Current page number (1-indexed)
+   * Set the current page number
    */
-  get page(): number {
-    return this._currentPage;
+  setPage(val: number): void {
+    if (val >= 1 && val <= this.pagesCount) {
+      this.page = val;
+      if (this.onUpdateCurrentPage) {
+        this.onUpdateCurrentPage(val);
+      }
+    }
   }
-
+  
   /**
-   * Set the current page
-   * 
-   * @param value Page number (1-indexed)
+   * Get the current page number
    */
-  set page(value: number) {
-    this._currentPage = value;
+  get pageNumber(): number {
+    return this.page;
   }
-
-  /**
-   * Get the rotation of the current page
-   * 
-   * @returns Rotation in degrees (0, 90, 180, 270)
-   */
-  get rotation(): number {
-    return this._rotation;
-  }
-
+  
   /**
    * Set the rotation of the current page
-   * 
-   * @param value Rotation in degrees (0, 90, 180, 270)
    */
-  set rotation(value: number) {
-    this._rotation = value;
+  setRotation(rotation: number): void {
+    this.rotation = rotation;
   }
-
-  private _currentPage: number = 1;
-  private _rotation: number = 0;
-
+  
   /**
-   * Navigate to a destination in the PDF
-   * 
-   * @param dest Destination object from the PDF
-   * @param name Destination name
-   * @param allowNamesReflow Allow names to reflow
+   * Get current rotation
    */
-  navigateTo(dest: any, name?: string, allowNamesReflow?: boolean): void {
-    // In a real implementation, this would navigate to a specific destination
-    // For our minimal implementation, we don't need to do anything
+  get pagesRotation(): number {
+    return this.rotation;
   }
-
+  
   /**
-   * Get the destination hash from a destination
-   * 
-   * @param dest Destination object
-   * @returns Destination hash
+   * Navigate to a specific destination
    */
-  getDestinationHash(dest: any): string {
-    return typeof dest === "string" ? dest : `page=${dest?.[0] || 1}`;
+  navigateTo(dest: any): void {
+    if (this.onNavigate) {
+      this.onNavigate(dest);
+    }
   }
-
+  
   /**
-   * Navigate to a specific page
-   * 
-   * @param pageNumber Page number (1-indexed)
+   * Set the document reference
    */
-  goToPage(pageNumber: number): void {
-    this._currentPage = pageNumber;
+  setDocument(pdfDocument: any): void {
+    if (pdfDocument && pdfDocument.numPages) {
+      this.pagesCount = pdfDocument.numPages;
+    } else {
+      this.pagesCount = 0;
+    }
+  }
+  
+  /**
+   * Reset the service (e.g., when document is closed)
+   */
+  reset(): void {
+    this.page = 1;
+    this.pagesCount = 0;
+    this.rotation = 0;
+    this.onNavigate = null;
+    this.onUpdateCurrentPage = null;
+  }
+  
+  /**
+   * Navigate to a specific destination or named destination
+   */
+  goToDestination(dest: any): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (typeof dest === 'string') {
+        // Handle named destination (not implemented in simple version)
+        resolve();
+      } else if (Array.isArray(dest)) {
+        // Handle explicit destination
+        const destRef = dest[0];
+        let pageNumber = destRef instanceof Object ? 
+          this.pagesCount : // Page reference (simplified)
+          (destRef + 1);    // Page index
+        
+        if (pageNumber > this.pagesCount || pageNumber < 1) {
+          pageNumber = 1;
+        }
+        
+        this.setPage(pageNumber);
+        resolve();
+      } else {
+        resolve();
+      }
+    });
   }
 }
