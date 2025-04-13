@@ -143,17 +143,27 @@ This document tracks the migration from our custom PDF viewer implementation to 
   - [ ] Implement keyboard navigation shortcuts
 
 ### Phase 4: Feature Enhancement
-- [ ] Integrate annotation features
-  - [ ] Research PDF.js viewer annotation capabilities
-  - [ ] Implement custom annotation tools if needed
-  - [ ] Add signature capture mechanism
-  - [ ] Create checkbox annotation feature
+- [ ] Integrate PDF.js Native Annotations
+  - [x] Research PDF.js viewer annotation capabilities
+  - [ ] Configure annotation modes in DirectPDFViewer
+  - [ ] Implement annotation state management
+  - [ ] Enable proper event handling and lifecycle management
+- [ ] Implement Annotation Types
+  - [ ] Add FreeText annotation support
+  - [ ] Create Signature annotation capability
+  - [ ] Implement Highlight annotation functionality
+  - [ ] Design annotation toolbar interface with styled modes
 - [ ] Optimize mobile experience
-  - [ ] Test and fix issues on mobile devices
-  - [ ] Add mobile-specific styling
-  - [ ] Implement touch gesture handling
-- [ ] Future delivery mechanisms
+  - [ ] Test and optimize touch interactions for annotations
+  - [ ] Add mobile-responsive toolbar positioning
+  - [ ] Verify zoom behavior with annotations
+  - [ ] Implement proper gesture handling
+- [ ] Add annotation persistence
+  - [ ] Configure annotation saving in PDF format
+  - [ ] Implement annotation serialization/deserialization
+  - [ ] Test persistence between page navigations
   - [ ] Document browser limitations for client-side PDF downloads on mobile
+- [ ] Future server-side features
   - [ ] Plan for server-side email delivery of annotated PDFs
   - [ ] Research secure storage options for temporary document storage
 
@@ -556,7 +566,8 @@ The DirectPDFViewer implementation provides the core features we need with the f
 - [PDF.js Documentation](https://mozilla.github.io/pdf.js/)
 - [PDF.js Pre-built Viewer](https://mozilla.github.io/pdf.js/web/viewer.html)
 - [PDF.js Viewer API](https://mozilla.github.io/pdf.js/api/)
-- [Fabric.js Documentation](http://fabricjs.com/)
+- [PDF.js Annotation Layer API](https://github.com/mozilla/pdf.js/blob/master/src/display/annotation_layer.js)
+- [PDF.js AnnotationEditor Types](https://github.com/mozilla/pdf.js/blob/master/src/display/editor/editor.js)
 - [iframe Communication API](https://developer.mozilla.org/en-US/docs/Web/API/Window/postMessage)
 
 ## Previous Implementation Issues (Now Resolved)
@@ -567,6 +578,50 @@ The DirectPDFViewer implementation provides the core features we need with the f
 - ✓ Inconsistent auto-scaling
 - ✓ Rendering failures on certain file types
 - ✓ Memory leaks with large documents
+
+## PDF.js Native Annotation Implementation
+
+After research and analysis, we've decided to implement annotations using PDF.js native annotation capabilities rather than our custom Fabric.js approach.
+
+### Benefits of PDF.js Native Annotations
+1. **Integrated with PDF.js Rendering Pipeline**: Native annotations are part of PDF.js core, ensuring proper synchronization with document rendering
+2. **Mobile-Optimized Touch Support**: Built-in touch event handling for better mobile experience
+3. **Proper Scaling and Positioning**: Native annotations scale correctly with document zoom
+4. **PDF Standard Compliance**: Annotations saved in standard PDF format
+5. **Lower Maintenance Burden**: Follows PDF.js updates automatically
+6. **Reduced Risk of Rendering Issues**: Eliminates synchronization problems between PDF content and annotation layer
+
+### Annotation Types to Implement
+1. **FreeText**: For adding text annotations to the document
+2. **Highlight**: For highlighting existing text in the document
+3. **Signature**: For adding signature fields to the document
+
+### Integration Strategy
+- Enable PDF.js annotation editor layer in DirectPDFViewer
+- Implement annotation mode switching through a custom toolbar
+- Provide styling options consistent with beNext.io branding
+- Create annotation state management with proper lifecycle handling
+- Ensure annotations persist between page navigations
+- Add proper mobile touch support and testing
+
+### Implementation Structure
+```
+client/src/components/pdf-viewer/
+├── annotations/
+│   ├── AnnotationToolbar.tsx
+│   ├── TextAnnotationOptions.tsx
+│   └── SignatureAnnotationOptions.tsx
+├── hooks/
+│   └── useAnnotationState.ts
+└── utils/
+    └── annotationConfig.ts
+```
+
+The decision to use PDF.js native annotations over Fabric.js addresses the primary concerns with our previous approach:
+1. It provides better stability especially for mobile interactions
+2. It ensures proper synchronization with PDF rendering
+3. It reduces code complexity and maintenance burden
+4. It follows PDF standards for better compatibility
 
 ## Remaining Issues to Address
 - Mobile-specific optimizations needed for better touch support
