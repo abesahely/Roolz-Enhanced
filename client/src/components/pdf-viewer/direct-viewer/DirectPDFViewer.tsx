@@ -106,6 +106,9 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
   // Reference to annotation manager for PDF.js
   const annotationEditorUIManagerRef = useRef<any>(null);
   
+  // Track annotation styles that needs to be applied
+  const activeAnnotationStyleRef = useRef<Record<string, any>>({});
+  
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pdfDocRef = useRef<any>(null);
   const pdfArrayBufferRef = useRef<ArrayBuffer | null>(null);
@@ -408,14 +411,16 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       const renderContext: PDFRenderContextOptions = {
         canvasContext: context,
         viewport: scaledViewport,
-        // Enable annotation support when in annotation mode
+        // Enable annotation mode
         annotationMode: getAnnotationEditorType(),
         // Enable interactive forms for better user interaction
         renderInteractiveForms: true,
         // Enable enhanced text selection for highlight annotations
         enhanceTextSelection: annotationMode === 'highlight',
-        // Enable annotation editor layers
-        renderAnnotationEditorLayers: true
+        // Always enable annotation editor layers
+        renderAnnotationEditorLayers: true,
+        // Set annotation editor type explicitly
+        annotationEditorType: getAnnotationEditorType()
       };
       
       try {
