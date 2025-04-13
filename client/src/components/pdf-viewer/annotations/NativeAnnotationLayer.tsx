@@ -170,16 +170,25 @@ const NativeAnnotationLayer: React.FC<NativeAnnotationLayerProps> = ({
   }, [pdfPage, viewport, pageNumber]);
   
   // Render annotation layers if we have necessary data
-  if (pdfPage && viewport && container) {
+  if (pdfPage && viewport) {
     return (
-      <AnnotationRendererLayer
-        pdfPage={pdfPage}
-        viewport={viewport}
-        container={container}
-        isEditable={isEditMode}
-        pageNumber={pageNumber}
-        onAnnotationModified={onAnnotationModified}
-      />
+      <div style={{ 
+        position: 'absolute', 
+        top: 0, 
+        left: 0, 
+        width: `${viewport.width}px`, 
+        height: `${viewport.height}px`,
+        pointerEvents: 'none' 
+      }}>
+        <AnnotationRendererLayer
+          pdfPage={pdfPage}
+          viewport={viewport}
+          container={container || document.body}
+          isEditable={isEditMode}
+          pageNumber={pageNumber}
+          onAnnotationModified={onAnnotationModified}
+        />
+      </div>
     );
   }
   

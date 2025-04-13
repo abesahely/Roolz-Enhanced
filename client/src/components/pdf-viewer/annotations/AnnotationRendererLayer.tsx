@@ -119,12 +119,26 @@ const AnnotationRendererLayer: React.FC<AnnotationRendererLayerProps> = ({
     let editorLayer = null;
     if (isEditable && editorLayerRef.current) {
       try {
+        // Make sure we have the UI manager
+        const uiManager = window.PDFViewerApplication?.pdfViewer?.annotationEditorUIManager 
+          || window.PDFViewerApplication?.annotationEditorUIManager;
+        
+        // Create the editor layer with proper parameters
         // @ts-ignore - Ignoring type checking for PDF.js parameters
         editorLayer = new pdfjsLib.AnnotationEditorLayer({
           ...parameters,
-          uiManager: window.PDFViewerApplication?.pdfViewer?.annotationEditorUIManager || null,
+          uiManager: uiManager,
           div: editorLayerRef.current,
           mode: annotationManager.currentMode,
+          accessibilityManager: null,
+          l10n: null,
+          editingState: null,
+        });
+        
+        // Log successful creation for debugging
+        console.log('Annotation editor layer created successfully', {
+          mode: annotationManager.currentMode,
+          uiManager: !!uiManager
         });
       } catch (error) {
         console.error('Error creating annotation editor layer:', error);

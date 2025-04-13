@@ -838,12 +838,14 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
               pdfPage={currentPageObj}
               viewport={currentViewport}
               pageNumber={currentPage}
-              isEditMode={isAnnotating}
+              isEditMode={true} // Always enable editing mode
+              annotationMode={getAnnotationMode(annotationMode)}
               onAnnotationCreated={(annotation) => {
                 markAnnotationsModified();
                 console.log('[DirectPDFViewer] Annotation created', annotation);
               }}
               containerRef={{ current: canvasRef.current?.parentElement as HTMLDivElement || null }}
+              canvas={canvasRef.current}
             />
           )}
         </div>
