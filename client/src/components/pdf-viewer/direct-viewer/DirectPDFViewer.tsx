@@ -5,10 +5,26 @@ import { BRAND_COLORS } from '@/lib/constants';
 // This ensures we're using the version that's actually installed (3.11.174)
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf';
 
+// Add global type declaration for PDF.js application
+declare global {
+  interface Window {
+    PDFViewerApplication?: {
+      pdfViewer: {
+        currentPageNumber: number;
+        annotationEditorUIManager?: {
+          updateMode: (mode: number) => void;
+          updateParams: (params: any) => void;
+        };
+      };
+    };
+  }
+}
+
 // Import annotation utilities
-import { getAnnotationMode, PDFRenderContextOptions } from '../utils/annotationConfig';
+import { getAnnotationMode, getAnnotationMode as getAnnotationModeFunction, PDFRenderContextOptions } from '../utils/annotationConfig';
 import { useAnnotationState } from '../hooks/useAnnotationState';
 import AnnotationToolbar from '../annotations/AnnotationToolbar';
+import { AnnotationMode } from '../utils/annotationConfig';
 
 // For TypeScript, we'll use 'any' types to avoid type conflicts
 // The specific PDF.js types can cause issues with different versions
@@ -97,11 +113,28 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
     annotationMode,
     isAnnotating,
     annotationsModified,
-    toggleAnnotationMode,
+    toggleAnnotationMode: baseToggleAnnotationMode,
     getAnnotationEditorType,
     markAnnotationsModified,
     resetAnnotationsModified
   } = useAnnotationState();
+  
+  // Enhanced toggle function that updates PDF.js annotation editor
+  const toggleAnnotationMode = useCallback((mode: AnnotationMode) => {
+    // Call the base toggle function from the hook
+    baseToggleAnnotationMode(mode);
+    
+    // If we have access to the PDF.js annotation editor, update the mode
+    if (window.PDFViewerApplication?.pdfViewer?.annotationEditorUIManager) {
+      try {
+        const editorType = mode === null ? 0 : getAnnotationMode(mode);
+        debugPDFViewer('Updating PDF.js annotation editor mode', { mode, editorType });
+        window.PDFViewerApplication.pdfViewer.annotationEditorUIManager.updateMode(editorType);
+      } catch (err) {
+        console.error('Error updating annotation editor mode:', err);
+      }
+    }
+  }, [baseToggleAnnotationMode, getAnnotationEditorType]);
   
   // Reference to annotation manager for PDF.js
   const annotationEditorUIManagerRef = useRef<any>(null);
@@ -411,16 +444,12 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
       const renderContext: PDFRenderContextOptions = {
         canvasContext: context,
         viewport: scaledViewport,
-        // Enable annotation mode
-        annotationMode: getAnnotationEditorType(),
         // Enable interactive forms for better user interaction
         renderInteractiveForms: true,
         // Enable enhanced text selection for highlight annotations
-        enhanceTextSelection: annotationMode === 'highlight',
-        // Always enable annotation editor layers
-        renderAnnotationEditorLayers: true,
-        // Set annotation editor type explicitly
-        annotationEditorType: getAnnotationEditorType()
+        enhanceTextSelection: true,
+        // Enable annotation editor layer (correct parameter name)
+        renderAnnotationEditorLayer: true
       };
       
       try {
@@ -437,6 +466,32 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
               width: scaledViewport.width,
               height: scaledViewport.height
             });
+            
+            // Initialize annotation editor if we're in annotation mode
+            if (annotationMode && window.PDFViewerApplication?.pdfViewer) {
+              try {
+                debugPDFViewer('Setting PDF.js annotation editor type', { 
+                  type: getAnnotationEditorType() 
+                });
+                
+                // Attempt to access the PDF.js annotation layer
+                const pdfViewer = window.PDFViewerApplication.pdfViewer;
+                
+                // If the editor exists, set the mode
+                if (pdfViewer.annotationEditorUIManager) {
+                  // Store reference to the editor manager
+                  annotationEditorUIManagerRef.current = pdfViewer.annotationEditorUIManager;
+                  
+                  // Set the current editor type (text, highlight, etc.)
+                  pdfViewer.annotationEditorUIManager.updateMode(getAnnotationEditorType());
+                  
+                  // Mark annotations as modifiable
+                  markAnnotationsModified();
+                }
+              } catch (err) {
+                console.error('Error initializing annotation editor:', err);
+              }
+            }
             
             // Notify parent when canvas is ready for annotations
             if (onCanvasReady && canvas) {
