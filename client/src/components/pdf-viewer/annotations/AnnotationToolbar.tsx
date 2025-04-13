@@ -27,8 +27,10 @@ interface AnnotationToolbarProps {
   
   /**
    * Callback when an annotation mode is toggled
+   * This can be called onModeToggle or onModeChange to support different naming conventions
    */
-  onModeToggle: (mode: AnnotationMode) => void;
+  onModeToggle?: (mode: AnnotationMode) => void;
+  onModeChange?: (mode: AnnotationMode) => void;
   
   /**
    * Callback to save annotations
@@ -37,8 +39,15 @@ interface AnnotationToolbarProps {
   
   /**
    * Whether annotations have been modified (enables save button)
+   * Both naming conventions (annotationsModified or hasModifications) are supported
    */
   annotationsModified?: boolean;
+  hasModifications?: boolean;
+  
+  /**
+   * Whether the toolbar is visible
+   */
+  isVisible?: boolean;
   
   /**
    * Callback to close the toolbar
@@ -58,11 +67,28 @@ interface AnnotationToolbarProps {
 const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
   currentMode,
   onModeToggle,
+  onModeChange,
   onSave,
   annotationsModified = false,
+  hasModifications = false,
+  isVisible = true,
   onClose,
   className = ''
 }) => {
+  // Handle different naming conventions for the same function
+  const handleModeToggle = (mode: AnnotationMode) => {
+    // Use onModeToggle if provided, otherwise fall back to onModeChange
+    if (onModeToggle) {
+      onModeToggle(mode);
+    } else if (onModeChange) {
+      onModeChange(mode);
+    } else {
+      console.warn('No mode toggle handler provided to AnnotationToolbar');
+    }
+  };
+  
+  // Use either annotationsModified or hasModifications
+  const isModified = annotationsModified || hasModifications;
   // Determine if a button is active
   const isActive = (mode: AnnotationMode) => currentMode === mode;
   
@@ -89,6 +115,11 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
     height: '40px'
   };
 
+  // Apply conditional visibility
+  if (!isVisible) {
+    return null;
+  }
+
   return (
     <div className={`bg-white p-2 rounded-lg shadow-md ${className}`}
          style={{
@@ -104,7 +135,7 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
           ...buttonStyle,
           ...(isActive(AnnotationModes.TEXT) ? activeButtonStyle : {})
         }}
-        onClick={() => onModeToggle(AnnotationModes.TEXT)}
+        onClick={() => handleModeToggle(AnnotationModes.TEXT)}
         title="Add Text Box"
       >
         <TextCursor size={20} />
@@ -116,7 +147,7 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
           ...buttonStyle,
           ...(isActive(AnnotationModes.HIGHLIGHT) ? activeButtonStyle : {})
         }}
-        onClick={() => onModeToggle(AnnotationModes.HIGHLIGHT)}
+        onClick={() => handleModeToggle(AnnotationModes.HIGHLIGHT)}
         title="Highlight Text"
       >
         <Highlighter size={20} />
@@ -128,7 +159,7 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
           ...buttonStyle,
           ...(isActive(AnnotationModes.DRAWING) ? activeButtonStyle : {})
         }}
-        onClick={() => onModeToggle(AnnotationModes.DRAWING)}
+        onClick={() => handleModeToggle(AnnotationModes.DRAWING)}
         title="Draw on PDF"
       >
         <PenLine size={20} />
@@ -140,7 +171,7 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
           ...buttonStyle,
           ...(isActive(AnnotationModes.SIGNATURE) ? activeButtonStyle : {})
         }}
-        onClick={() => onModeToggle(AnnotationModes.SIGNATURE)}
+        onClick={() => handleModeToggle(AnnotationModes.SIGNATURE)}
         title="Add Signature"
       >
         <PenTool size={20} />
@@ -152,7 +183,7 @@ const AnnotationToolbar: React.FC<AnnotationToolbarProps> = ({
           ...buttonStyle,
           ...(isActive(AnnotationModes.CHECKBOX) ? activeButtonStyle : {})
         }}
-        onClick={() => onModeToggle(AnnotationModes.CHECKBOX)}
+        onClick={() => handleModeToggle(AnnotationModes.CHECKBOX)}
         title="Add Checkbox"
       >
         <CheckSquare size={20} />
