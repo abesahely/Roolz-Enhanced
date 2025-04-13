@@ -333,6 +333,19 @@ export const DirectPDFViewer: React.FC<DirectPDFViewerProps> = ({
           setNumPages(pdfDoc.numPages);
           setIsLoading(false);
           
+          // Initialize the annotation system
+          try {
+            debugPDFViewer('Initializing annotation system');
+            initializeAnnotationSystem(pdfDoc, initialPage);
+            
+            // If we have an active annotation mode, apply it
+            if (annotationMode) {
+              updateAnnotationEditorMode(annotationMode);
+            }
+          } catch (error) {
+            console.error('Failed to initialize annotations:', error);
+          }
+          
           // Add a small delay before rendering the initial page
           // This gives React time to update the DOM with components
           // from the non-loading state before we attempt to render

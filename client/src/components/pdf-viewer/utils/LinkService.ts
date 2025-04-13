@@ -10,15 +10,7 @@
  * for the PDF.js annotation system.
  */
 export class SimpleLinkService {
-  /**
-   * Get the page number for a specific destination
-   * 
-   * @param dest Destination object from the PDF
-   * @returns Page number (1-indexed)
-   */
-  getDestinationHash(dest: any): string {
-    return typeof dest === "string" ? dest : `page=${dest[0]}`;
-  }
+  // This class implements methods required by PDF.js for annotation support
 
   /**
    * Get the current page
