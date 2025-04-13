@@ -82,6 +82,20 @@ export class SimpleLinkService {
     this.onNavigate = null;
     this.onUpdateCurrentPage = null;
   }
+
+  /**
+   * Add attributes to a link element for external links
+   * Required by PDF.js for proper link handling
+   */
+  addLinkAttributes(link: HTMLAnchorElement, url: string, newWindow: boolean = false): void {
+    link.href = url;
+    link.rel = "noopener noreferrer";
+    if (newWindow) {
+      link.target = "_blank";
+    }
+    // Add any additional attributes needed for security or tracking
+    link.setAttribute("data-from-pdf", "true");
+  }
   
   /**
    * Navigate to a specific destination or named destination
