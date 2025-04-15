@@ -4,9 +4,9 @@
 This document tracks the migration from our custom PDF viewer implementation to a more stable architecture. After facing challenges with React-PDF integration in the Replit environment, we are pivoting to using the PDF.js pre-built viewer component for improved reliability and compatibility.
 
 ## Current Status
-**Phase:** Phase 4: Native PDF.js Annotation Implementation - Step 3 Complete  
+**Phase:** Phase 4: Native PDF.js Annotation Implementation - Step 3 Complete, Issues Identified  
 **Last Updated:** April 13, 2025  
-**Completion:** 95% (Successfully implemented DirectPDFViewer with native PDF.js; completed workflow and error handling improvements; refined annotation toolbar UI with proper icon contrast and streamlined tools)
+**Completion:** 90% (Successfully implemented DirectPDFViewer with native PDF.js; completed workflow and error handling improvements; refined annotation toolbar UI with proper icon contrast and streamlined tools; identified critical issues with annotation rendering and zoom calculations)
 
 ## Migration Checklist
 
@@ -278,6 +278,81 @@ pdf-viewer/ (Module directory)
 3. **Memory Constraints**: Be extra careful with memory usage on mobile devices
 4. **Platform Detection**: Apply iOS-specific fixes for Safari
 5. **Loading Indicators**: Provide clear visual feedback for all operations
+
+## Current Implementation Issues and Investigation Plan
+
+### PDF Annotation Rendering Issues
+
+We've identified critical issues with the PDF annotation system. While the annotation UI appears to work correctly (toolbar buttons work, signature dialog appears), annotations aren't being properly rendered on the PDF itself. Error logs show consistent issues with creating the annotation editor layer:
+
+```
+Error creating annotation editor layer:{}
+Error rendering XFA layer:{}
+```
+
+#### Architecture Analysis
+
+The annotation system architecture has multiple components:
+
+1. **DirectPDFViewer** - Main controller that orchestrates the PDF viewing experience
+2. **AnnotationContainer** - Manages the annotation toolbar UI and mode switching
+3. **NativeAnnotationLayer** - Renders existing annotations and provides interactive layer
+4. **AnnotationRendererLayer** - Integrates with PDF.js to render annotation layers
+5. **AnnotationManager** - Manages annotation state and editor modes
+6. **PDFJSInitializer** - Sets up the PDF.js environment with proper configuration
+
+The core issue appears to be in the **AnnotationRendererLayer** component, which fails when attempting to create and render the PDF.js annotation editor layer, despite our attempts to properly configure it.
+
+#### Key Discrepancies with PDF.js Standard Implementation
+
+After comparing our implementation with PDF.js reference code, we've identified these issues:
+
+1. **Builder Pattern Mismatch**: PDF.js uses a builder pattern (AnnotationEditorLayerBuilder) while we're directly creating layers
+2. **Parameter Incompatibilities**:
+   - Missing or incorrect accessibilityManager implementation
+   - Incomplete l10n (localization) setup
+   - Potential mismatch in UI manager integration
+3. **Layer Dependency Issues**:
+   - Improper connections between annotation layer, text layer, and editor layer
+   - Component lifecycle doesn't match expected initialization sequence
+
+#### Investigation Plan
+
+1. **Reference Implementation Study**:
+   - Examine PDF.js source code for AnnotationEditorLayerBuilder
+   - Compare parameter requirements with our current implementation
+   - Identify required interfaces and object structures
+
+2. **Layer Integration Verification**:
+   - Verify proper connection between annotation layers
+   - Ensure correct event propagation between components
+   - Validate parameter passing between layers
+
+3. **UI Manager Configuration**:
+   - Verify annotationEditorUIManager is properly initialized
+   - Check for inconsistencies in parameter naming or structure
+   - Ensure proper mode setting and propagation
+
+### Zoom Calculation Issues
+
+We've also identified problems with the 'Fit Width' and 'Fit Page' zoom calculations. These modes are not correctly scaling the PDF, leading to incorrect display.
+
+#### Investigation Plan
+
+1. **Viewport Analysis**:
+   - Review the viewport calculation logic in DirectPDFViewer
+   - Compare current implementation with PDF.js examples
+   - Verify proper aspect ratio and margin handling
+
+2. **Scale Persistence**:
+   - Analyze how scale values are maintained during page navigation
+   - Verify scale calculations on window resize
+   - Check for potential race conditions in scale application
+
+3. **Container Dimensions**:
+   - Verify accurate container measurements
+   - Check for potential timing issues when getting container dimensions
+   - Implement proper dimension caching and refresh strategy
 
 ### Direct Implementation Strategy: Native PDF.js Integration
 
